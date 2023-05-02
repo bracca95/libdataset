@@ -1,0 +1,16 @@
+{
+    "dataset_path": "/media/lorenzo/M/datasets/dataset_opt/2.2_dataset_opt/views/img",
+    "dataset_type": "all",
+    "augment_online": false,
+    "augment_offline": true,
+    "batch_size": 32,
+    "epochs": 100,
+    "crop_size": 28,
+    "image_size": null,
+    "dataset_mean": [
+        0.533560574054718
+    ],
+    "dataset_std": [
+        0.07096002250909805
+    ]
+}
