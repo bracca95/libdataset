@@ -1,12 +1,15 @@
-from typing import TypeVar
-
+from torch.utils.data import Subset
+from typing import Optional, TypeVar, TypedDict
 
 T = TypeVar("T")
+SubsetsDict = TypedDict("SubsetsDict", { "train": Subset, "val": Optional[Subset], "test": Subset })
+
 
 class General:
     DEFAULT_BOOL = False
     DEFAULT_INT = 0
     DEFAULT_STR = ""
+    DEFAULT_SUBSETS = ["train", "val", "test"]
 
 
 class ConfigConst:

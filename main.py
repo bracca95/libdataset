@@ -3,9 +3,11 @@ import torch
 import random
 import numpy as np
 
-from torch.utils.data import random_split
+from src.models.model_utils import Model
+from src.train_test.routine import TrainTestExample
+from src.datasets.defectviews import DefectViews
+from src.datasets.dataset_utils import CustomDatasetLoader
 from src.utils.config_parser import Config
-from src.datasets import DefectViews, MNIST, BubblePoint, TTSet
 from src.utils.tools import Logger
 
 SEED = 1234
@@ -21,32 +23,28 @@ if __name__=="__main__":
     try:
         config = Config.deserialize("config/config.json")
     except Exception as e:
-        Logger.instance().error(e.args)
+        Logger.instance().critical(e.args)
         sys.exit(-1)
 
-    if config.dataset_type == "all":
-        dataset = DefectViews(config.dataset_path, config.augment_offline, config.augment_online, config.crop_size)
-    elif config.dataset_type == "binary":
-        dataset = BubblePoint(config.dataset_path, config.augment_online, config.crop_size)
-    else:
-        Logger.instance.error("either `all` or `binary` for dataset_type")
+    try:
+        dataset = CustomDatasetLoader.load_dataset(config)
+    except ValueError as ve:
+        Logger.instance().critical(ve.args)
         sys.exit(-1)
-    
+
     # compute mean and variance of the dataset if not done yet
     if config.dataset_mean is None and config.dataset_std is None:
         Logger.instance().warning("No mean and std set: computing and storing values.")
         DefectViews.compute_mean_std(dataset, config)
         sys.exit(0)
 
-    # if type(dataset) is MNIST:
-    #     trainset, testset = dataset.get_train_test()
-    #     trainset = TTSet(trainset)
-    #     testset = TTSet(testset)
-    # else:
-    #     train_test_split = int(len(dataset)*0.8)
-    #     train_subset, test_subset = random_split(dataset, [train_test_split, len(dataset) - train_test_split])
-    #     trainset = TTSet(train_subset.dataset, train_subset.indices, dataset)
-    #     testset = TTSet(test_subset.dataset, test_subset.indices, dataset)
+    # train, (val), test split
+    model = Model()
+    subsets_dict = DefectViews.split_dataset(dataset, [0.8])
+    example = TrainTestExample(model, dataset, subsets_dict)
+
+    example.train()
+    example.test()
 
     # if config.mode == "mlp":
     #     Logger.instance().debug("running MLP")

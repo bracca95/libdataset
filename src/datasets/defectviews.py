@@ -1,16 +1,17 @@
 import os
 import torch
-import torchvision
 
 from PIL import Image
 from glob import glob
 from typing import Optional, Union, List
 from torchvision import transforms
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import Dataset, DataLoader, random_split
 
 from src.imgproc import Processing
 from src.utils.config_parser import Config
 from src.utils.tools import Logger, Tools
+from config.consts import SubsetsDict
+from config.consts import General as _GC
 
 
 class DefectViews(Dataset):
@@ -30,6 +31,7 @@ class DefectViews(Dataset):
 
     def __init__(self, dataset_path: str, aug_off: bool, aug_on: bool, crop_size: int, img_size: Optional[int] = None, filt: Optional[List[str]] = None):
         self.dataset_path: str = dataset_path
+        self.dataset_aug_path: str = os.path.join(os.path.dirname(self.dataset_path), self.AUG_DIR)
         self.filt: Optional[List[str]] = filt
 
         self.augment_online: bool = aug_on
@@ -49,7 +51,7 @@ class DefectViews(Dataset):
         self.std: Optional[float] = None
 
     def get_image_list(self, filt: Optional[List[str]]) -> List[str]:
-        extra_image_list = [f for f in glob(os.path.join(os.path.dirname(self.dataset_path), self.AUG_DIR, "*.png"))] if self.augment_offline else []
+        extra_image_list = [f for f in glob(os.path.join(self.dataset_aug_path, "*.png"))] if self.augment_offline else []
         image_list = [f for f in glob(os.path.join(self.dataset_path, "*.png"))]
         
         image_list = image_list + extra_image_list
@@ -78,15 +80,16 @@ class DefectViews(Dataset):
     
     def augment_dataset(self):
         Logger.instance().debug("increasing the number of images...")
-        dataset_augment_dir = os.path.join(os.path.dirname(self.dataset_path), self.AUG_DIR)
         
-        if os.path.exists(dataset_augment_dir):
-            Logger.instance().warning("the dataset has already been augmented")
-            return
+        if os.path.exists(self.dataset_aug_path):
+            if len(os.listdir(self.dataset_aug_path)) > 0:
+                Logger.instance().warning("the dataset has already been augmented")
+                return
+        else:
+            os.makedirs(self.dataset_aug_path)
         
-        os.makedirs(dataset_augment_dir)
         image_list = self.get_image_list(["break", "mark"]) # "break", "mark", "scratch"
-        Processing.store_augmented_images(image_list, dataset_augment_dir)
+        Processing.store_augmented_images(image_list, self.dataset_aug_path)
 
         Logger.instance().debug("dataset augmentatio completed")
         
@@ -96,33 +99,18 @@ class DefectViews(Dataset):
         img_pil = Image.open(path).convert("L")
 
         # crop
-        # TODO: the else condition fits well for almost square-shaped images but not for scratches or breaks
-        if img_pil.size[0] * img_pil.size[1] < self.crop_size * self.crop_size:
-            m = min(img_pil.size)
-            centercrop = transforms.Compose([transforms.CenterCrop((m, m))])
-            resize = transforms.Compose([transforms.Resize((self.crop_size, self.crop_size))])
-            
-            img_pil = centercrop(img_pil)
-            img_pil = resize(img_pil)
-
-            Logger.instance().debug(f"image size for {os.path.basename(path)} is less than required. Upscaling.")
-        else:
-            centercrop = transforms.Compose([transforms.CenterCrop((self.crop_size, self.crop_size))])
-            img_pil = centercrop(img_pil)
+        img_pil = Processing.crop_no_padding(img_pil, self.crop_size, path)
         
         # resize (if required)
         if self.img_size is not None:
-            resize = transforms.Compose([transforms.Resize((self.img_size, self.img_size))])
-            img_pil = resize(img_pil)
+            img_pil = transforms.Resize((self.img_size, self.img_size))(img_pil)
 
         # rescale [0-255](int) to [0-1](float)
-        totensor = transforms.Compose([transforms.ToTensor()])
-        img = totensor(img_pil)
+        img = transforms.ToTensor()(img_pil)
 
         # normalize
         if self.mean is not None and self.std is not None:
-            normalize = transforms.Normalize(self.mean, self.std)
-            img = normalize(img)
+            img = transforms.Normalize(self.mean, self.std)(img)
 
         return img # type: ignore
     
@@ -157,6 +145,28 @@ class DefectViews(Dataset):
         config.serialize(os.getcwd(), "config/config.json")
         Logger.instance().warning(f"Mean: {mean}, std: {std}. Run the program again.")
 
+    @staticmethod
+    def split_dataset(dataset: Dataset, split_ratios: Union[float, List[float]]=[.8]) -> SubsetsDict:
+        if type(split_ratios) is float:
+            split_ratios = [split_ratios]
+        
+        if len(split_ratios) != 1 and len(split_ratios) != 3:
+            raise ValueError(f"split_ratios argument accepts either a list of 1 value (train,test) or 3 (train,val,test)")
+        
+        train_len = int(len(dataset) * split_ratios[0])
+        if len(split_ratios) == 1:
+            split_lens = [train_len, len(dataset) - train_len]
+        else:
+            val_len = train_len - int(len(dataset) * split_ratios[1])
+            split_lens = [train_len, val_len, len(dataset) - (train_len + val_len)]
+
+        subsets = random_split(dataset, split_lens)
+        val_set = None if len(subsets) == 2 else subsets[1]
+
+        train_str, val_str, test_str = _GC.DEFAULT_SUBSETS
+        
+        return { train_str: subsets[0], val_str: val_set, test_str: subsets[-1] }   # type: ignore
+
     def __getitem__(self, index):
         curr_img_batch = self.image_list[index]
         curr_label_batch = self.label_list[index]
@@ -178,87 +188,3 @@ class BubblePoint(DefectViews):
 
     def __init__(self, dataset_path: str, aug_on: bool, crop_size: int, img_size: Optional[int] = None):
         super().__init__(dataset_path, aug_off=False, aug_on=aug_on, crop_size=crop_size, img_size=img_size, filt=["bubble", "point"])
-
-
-class MNIST:
-
-    label_to_idx = { str(i): i for i in range(10) }
-
-    def __init__(self, root_dir: str, crop_size: Optional[int], img_size: Optional[int]):
-        self.root_dir = os.path.join(os.getcwd(), root_dir)
-        
-        self.in_dim = 28
-        self.out_dim = 10
-        if crop_size is None and img_size is None:
-            self.in_dim = 28
-        if crop_size is not None and img_size is None:
-            self.in_dim = crop_size
-        if crop_size is None and img_size is not None:
-            self.in_dim = img_size
-        if crop_size is not None and img_size is not None:
-            self.in_dim = img_size
-        
-        if crop_size is not None:
-            Logger.instance().warning("Cropping MNIST!!")
-            self.transform = transforms.Compose([
-                transforms.CenterCrop((crop_size, crop_size)),
-                transforms.ToTensor()
-            ])
-        
-        if img_size is not None:
-            Logger.instance().warning("Reshaping MNIST!!")
-            self.transform = transforms.Compose([
-                transforms.Resize((crop_size, crop_size)),
-                transforms.ToTensor()
-            ])
-
-        if crop_size is None and img_size is None:
-            self.transform = transforms.Compose([transforms.ToTensor()])
-    
-    def get_train_test(self):
-        train = torchvision.datasets.MNIST(root=self.root_dir, 
-                                          train=True, 
-                                          transform=self.transform,  
-                                          download=True)
-        
-        test = torchvision.datasets.MNIST(root=self.root_dir, 
-                                          train=False, 
-                                          transform=self.transform)
-        
-        return train, test
-
-
-class TTSet:
-    def __init__(self, 
-                 tt_set: Union[Dataset, torchvision.datasets.MNIST],
-                 indexes: Optional[List[int]] = None,
-                 dataset: Optional[Dataset] = None
-                ):
-        self.tt_set = tt_set
-        self.indexes = indexes
-        self.dataset = dataset
-        self.classes: Optional[List[str]] = self.__get_classes()
-        self.elem_per_class: Optional[dict] = self.__get_elem_per_class()
-
-    def __get_classes(self):
-        if self.indexes is None and self.dataset is None:
-            return self.tt_set.classes
-        else:
-            train_label_list = [self.dataset[idx][1] for idx in self.indexes]
-            classes = set(train_label_list)
-            Logger.instance.debug(f"split dataset: {classes}")
-            
-            return list(classes)
-
-    def __get_elem_per_class(self):
-        if self.indexes is None and self.dataset is None:
-            return None
-        
-        if self.classes is None:
-            self.__get_classes()
-
-        di = {self.dataset.idx_to_label[i]: self.classes.count(i) for i in self.classes}
-        Logger.instance().debug(f"number of elements per class: {di}")
-
-        return di
-    
