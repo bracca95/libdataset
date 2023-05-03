@@ -54,12 +54,12 @@ def to_class(c: Type[T], x: Any) -> dict:
 class Config:
     dataset_path: str = _CG.DEFAULT_STR
     dataset_type: str = _CG.DEFAULT_STR
-    augment_online: bool = _CG.DEFAULT_BOOL
-    augment_offline: bool = _CG.DEFAULT_BOOL
     batch_size: int = _CG.DEFAULT_INT
     epochs: int = _CG.DEFAULT_INT
     crop_size: int = _CG.DEFAULT_INT
     image_size: Optional[int] = None
+    augment_online: Optional[List[str]] = None
+    augment_offline: Optional[List[str]] = None
     dataset_mean: Optional[List[float]] = None
     dataset_std: Optional[List[float]] = None
 
@@ -74,13 +74,6 @@ class Config:
             dataset_path = input("insert dataset path: ")
             while not os.path.exists(dataset_path):
                 dataset_path = input("insert dataset path: ")
-
-        # bools
-        tmp_augment_online = from_union([from_str, from_bool], obj.get(_CC.CONFIG_AUGMENT_ONLINE))
-        augment_online = tmp_augment_online if Tools.check_instance(tmp_augment_online, bool) else Tools.str2bool(tmp_augment_online)
-
-        tmp_augment_offline = from_union([from_str, from_bool], obj.get(_CC.CONFIG_AUGMENT_OFFLINE))
-        augment_offline = tmp_augment_offline if Tools.check_instance(tmp_augment_offline, bool) else Tools.str2bool(tmp_augment_offline)
                 
         try:
             dataset_type = from_str(obj.get(_CC.CONFIG_DATASET_TYPE))
@@ -88,19 +81,28 @@ class Config:
             epochs = from_int(obj.get(_CC.CONFIG_EPOCHS))
             crop_size = from_int(obj.get(_CC.CONFIG_CROP_SIZE))
             image_size = from_union([from_none, from_int], obj.get(_CC.CONFIG_IMAGE_SIZE))
+            augment_online = from_union([lambda x: from_list(from_str, x), from_none], obj.get(_CC.CONFIG_AUGMENT_ONLINE))
+            augment_offline = from_union([lambda x: from_list(from_str, x), from_none], obj.get(_CC.CONFIG_AUGMENT_OFFLINE))
             dataset_mean = from_union([lambda x: from_list(from_float, x), from_none], obj.get(_CC.CONFIG_DATASET_MEAN))
             dataset_std = from_union([lambda x: from_list(from_float, x), from_none], obj.get(_CC.CONFIG_DATASET_STD))
         except TypeError as te:
             Logger.instance().critical(te.args)
             sys.exit(-1)
-        
+
+        if augment_online is not None:
+            if len(augment_online) == 0:
+                augment_online = None
+
+        if augment_offline is not None:
+            if len(augment_offline) == 0:
+                augment_offline = None
         
         Logger.instance().info(f"Config deserialized: " +
             f"dataset_path: {dataset_path}, dataset_type: {dataset_type}, augment_online: {augment_online}, " +
             f"augment_offline: {augment_offline}, batch_size {batch_size}, epochs: {epochs}, " +
             f"dataset mean: {dataset_mean}, dataset_std: {dataset_std}, crop_size: {crop_size}, image_size: {image_size}")
         
-        return Config(dataset_path, dataset_type, augment_online, augment_offline, batch_size, epochs, crop_size, image_size, dataset_mean, dataset_std)
+        return Config(dataset_path, dataset_type, batch_size, epochs, crop_size, image_size, augment_online, augment_offline, dataset_mean, dataset_std)
 
     def serialize(self, directory: str, filename: str):
         result: dict = {}
@@ -115,12 +117,12 @@ class Config:
         # if you do not want to write null values, add a field to result if and only if self.field is not None
         result[_CC.CONFIG_DATASET_PATH] = from_str(self.dataset_path)
         result[_CC.CONFIG_DATASET_TYPE] = from_str(self.dataset_type)
-        result[_CC.CONFIG_AUGMENT_ONLINE] = from_bool(self.augment_online)
-        result[_CC.CONFIG_AUGMENT_OFFLINE] = from_bool(self.augment_offline)
         result[_CC.CONFIG_BATCH_SIZE] = from_int(self.batch_size)
         result[_CC.CONFIG_EPOCHS] = from_int(self.epochs)
         result[_CC.CONFIG_CROP_SIZE] = from_int(self.crop_size)
         result[_CC.CONFIG_IMAGE_SIZE] = from_union([from_none, from_int], self.image_size)
+        result[_CC.CONFIG_AUGMENT_ONLINE] = from_union([lambda x: from_list(from_str, x), from_none], self.augment_online)
+        result[_CC.CONFIG_AUGMENT_OFFLINE] = from_union([lambda x: from_list(from_str, x), from_none], self.augment_offline)
         result[_CC.CONFIG_DATASET_MEAN] = from_union([lambda x: from_list(from_float, x), from_none], self.dataset_mean)
         result[_CC.CONFIG_DATASET_STD] = from_union([lambda x: from_list(from_float, x), from_none], self.dataset_std)
 

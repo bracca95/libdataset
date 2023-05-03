@@ -29,14 +29,14 @@ class DefectViews(Dataset):
 
     AUG_DIR = "img_augment"
 
-    def __init__(self, dataset_path: str, aug_off: bool, aug_on: bool, crop_size: int, img_size: Optional[int] = None, filt: Optional[List[str]] = None):
+    def __init__(self, dataset_path: str, aug_off: Optional[List[str]], aug_on: Optional[List[str]], crop_size: int, img_size: Optional[int] = None, filt: Optional[List[str]] = None):
         self.dataset_path: str = dataset_path
         self.dataset_aug_path: str = os.path.join(os.path.dirname(self.dataset_path), self.AUG_DIR)
         self.filt: Optional[List[str]] = filt
 
-        self.augment_online: bool = aug_on
-        self.augment_offline: bool = aug_off
-        if self.augment_offline:
+        self.augment_online: Optional[List[str]] = aug_on
+        self.augment_offline: Optional[List[str]] = aug_off
+        if self.augment_offline is not None:
             self.augment_dataset()
 
         self.image_list: Optional[List[str]] = self.get_image_list(self.filt)
@@ -51,6 +51,19 @@ class DefectViews(Dataset):
         self.std: Optional[float] = None
 
     def get_image_list(self, filt: Optional[List[str]]) -> List[str]:
+        """Read all the filenames in the dataset directory
+
+        Read and return all the filenames in the dataset directory. If filt is not None, it will read only the specified
+        elements (by class names - `self.label_to_idx` as an example). It will read also the directory containing
+        augmented images, if initialized.
+
+        Args:
+            filt (Optional[List[str]]): if not None, restrict the defect classes by name
+
+        Returns:
+            List[str] containing the full path to the images
+        """
+        
         extra_image_list = [f for f in glob(os.path.join(self.dataset_aug_path, "*.png"))] if self.augment_offline else []
         image_list = [f for f in glob(os.path.join(self.dataset_path, "*.png"))]
         
@@ -63,10 +76,18 @@ class DefectViews(Dataset):
         
         if not all(map(lambda x: x.endswith(".png"), image_list)) or image_list == []:
             raise ValueError("incorrect image list. Check the provided path for your dataset.")
+        
+        Logger.instance().info("Got image list")
 
         return image_list
 
     def get_label_list(self) -> List[int]:
+        """Get all the label names, for each image name
+
+        Returns:
+            List[str] with the name of the labels
+        """
+        
         if self.image_list is None:
             self.get_image_list(self.filt)
 
@@ -79,6 +100,16 @@ class DefectViews(Dataset):
         return [self.label_to_idx[defect] for defect in label_list]
     
     def augment_dataset(self):
+        """Perform offline augmentation
+        
+        Increase the number of available samples with augmentation techniques, if required in config. Offline
+        augmentation can work on a limited set of classes; indeed, it should be used if there are not enough samples
+        for each class.
+
+        Args:
+            classes (Optional[List[str]]): the classes that must be augmented
+        """
+        
         Logger.instance().debug("increasing the number of images...")
         
         if os.path.exists(self.dataset_aug_path):
@@ -88,14 +119,30 @@ class DefectViews(Dataset):
         else:
             os.makedirs(self.dataset_aug_path)
         
-        image_list = self.get_image_list(["break", "mark"]) # "break", "mark", "scratch"
+        image_list = self.get_image_list(self.augment_offline) # "break", "mark", "scratch"
         Processing.store_augmented_images(image_list, self.dataset_aug_path)
 
         Logger.instance().debug("dataset augmentatio completed")
         
 
     def load_image(self, path: str) -> torch.Tensor:
-        # about augmentation https://stackoverflow.com/questions/51677788/data-augmentation-in-pytorch
+        """Load image as tensor
+
+        This will be used in the trainloader only. Read the image, crop it, resize it (if required in config), make it
+        a tensor and normalize (if required).
+
+        Args:
+            path (str): full path to the image
+
+        Returns:
+            torch.Tensor of the modified image
+
+        See Also:
+            https://stackoverflow.com/questions/51677788/data-augmentation-in-pytorch
+            https://stackoverflow.com/questions/51677788/data-augmentation-in-pytorch
+            https://stackoverflow.com/a/72642001
+        """
+        
         img_pil = Image.open(path).convert("L")
 
         # crop
@@ -146,24 +193,42 @@ class DefectViews(Dataset):
         Logger.instance().warning(f"Mean: {mean}, std: {std}. Run the program again.")
 
     @staticmethod
-    def split_dataset(dataset: Dataset, split_ratios: Union[float, List[float]]=[.8]) -> SubsetsDict:
+    def split_dataset(dataset: Dataset, split_ratios: List[float]=[.8]) -> SubsetsDict:
+        """Split a dataset into train, (val), test
+        
+        Wrap torch.utils.data.random_split with a TypedDict that includes:
+        {'train': torch.utils.data.torch.utils.data.Subset, 'val': torch.utils.data.Subset, 'test': torch.utils.data.Subset}
+        The validation subset is None if not required
+
+        Args:
+            dataset (torch.utils.data.Dataset)
+            split_ratios (List[float]=[.8]): if len == 1: train/test, if len == 3 train/val/test else exception
+
+        Returns:
+            SubsetsDict (TypedDict)
+
+        Raises:
+            ValueError if split_ratios != {1, 3}
+
+        """
+        
         if type(split_ratios) is float:
             split_ratios = [split_ratios]
-        
-        if len(split_ratios) != 1 and len(split_ratios) != 3:
-            raise ValueError(f"split_ratios argument accepts either a list of 1 value (train,test) or 3 (train,val,test)")
         
         train_len = int(len(dataset) * split_ratios[0])
         if len(split_ratios) == 1:
             split_lens = [train_len, len(dataset) - train_len]
-        else:
+        elif len(split_ratios) == 3:
             val_len = train_len - int(len(dataset) * split_ratios[1])
             split_lens = [train_len, val_len, len(dataset) - (train_len + val_len)]
+        else:
+            raise ValueError(f"split_ratios argument accepts either a list of 1 value (train,test) or 3 (train,val,test)")
 
         subsets = random_split(dataset, split_lens)
         val_set = None if len(subsets) == 2 else subsets[1]
 
         train_str, val_str, test_str = _GC.DEFAULT_SUBSETS
+        Logger.instance().debug(f"Splitting dataset: {split_lens}")
         
         return { train_str: subsets[0], val_str: val_set, test_str: subsets[-1] }   # type: ignore
 
@@ -186,5 +251,5 @@ class BubblePoint(DefectViews):
 
     idx_to_label = Tools.invert_dict(label_to_idx)
 
-    def __init__(self, dataset_path: str, aug_on: bool, crop_size: int, img_size: Optional[int] = None):
-        super().__init__(dataset_path, aug_off=False, aug_on=aug_on, crop_size=crop_size, img_size=img_size, filt=["bubble", "point"])
+    def __init__(self, dataset_path: str, aug_on: Optional[List[str]], crop_size: int, img_size: Optional[int] = None):
+        super().__init__(dataset_path, aug_off=None, aug_on=aug_on, crop_size=crop_size, img_size=img_size, filt=["bubble", "point"])

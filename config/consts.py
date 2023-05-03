@@ -1,3 +1,5 @@
+# about TypedDict https://stackoverflow.com/a/64938100
+
 from torch.utils.data import Subset
 from typing import Optional, TypeVar, TypedDict
 
