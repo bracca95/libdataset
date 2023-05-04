@@ -6,7 +6,7 @@ import numpy as np
 from src.models.model_utils import Model
 from src.train_test.routine import TrainTestExample
 from src.datasets.defectviews import DefectViews
-from src.datasets.dataset_utils import CustomDatasetLoader
+from src.datasets.dataset_utils import DatasetBuilder
 from src.utils.config_parser import Config
 from src.utils.tools import Logger
 
@@ -27,7 +27,7 @@ if __name__=="__main__":
         sys.exit(-1)
 
     try:
-        dataset = CustomDatasetLoader.load_dataset(config)
+        dataset = DatasetBuilder.load_dataset(config)
     except ValueError as ve:
         Logger.instance().critical(ve.args)
         sys.exit(-1)

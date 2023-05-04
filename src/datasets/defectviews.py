@@ -3,18 +3,19 @@ import torch
 
 from PIL import Image
 from glob import glob
-from typing import Optional, Union, List
+from typing import Optional, List
 from torchvision import transforms
 from torch.utils.data import Dataset, DataLoader, random_split
 
 from src.imgproc import Processing
 from src.utils.config_parser import Config
 from src.utils.tools import Logger, Tools
+from src.datasets.staple_dataset import CustomDataset
 from config.consts import SubsetsDict
 from config.consts import General as _GC
 
 
-class DefectViews(Dataset):
+class DefectViews(CustomDataset):
 
     label_to_idx = {
         "bubble": 0, 
