@@ -43,6 +43,9 @@ if __name__=="__main__":
         sys.exit(0)
 
     ## TODO: Create model instantiator
+    ## TODO: online augmentation
+    ## TODO: tensorboard
+    ## TODO: improvements to FIXME
     # train, (val), test split
     model = ProtoNet().to(_CG.DEVICE)
     
@@ -52,27 +55,4 @@ if __name__=="__main__":
     # train test
     routine = ProtoRoutine(model, dataset, subsets_dict)
     routine.train(config)
-    routine.test(config)
-
-    # if config.mode == "mlp":
-    #     Logger.instance().debug("running MLP")
-    #     model = MLP(dataset.in_dim * dataset.in_dim, dataset.out_dim)
-    # elif config.mode == "rescnn":
-    #     Logger.instance().debug("running ResCNN")
-    #     model = ResCNN(dataset.in_dim, dataset.out_dim)
-    # elif config.mode == "cnn":
-    #     Logger.instance().debug("running CNN")
-    #     model = CNN(dataset.out_dim)
-    # else:
-    #     raise ValueError("either 'mlp' or 'cnn' or 'rescnn'")
-
-    # if config.train:
-    #     Logger.instance().debug("Starting training...")
-    #     trainer = Trainer(trainset.tt_set, model)
-    #     trainer.train(config)
-    # else:
-    #     Logger.instance().debug("Starting testing...")
-    #     tester = Tester(testset, model, "checkpoints/model.pt")
-    #     tester.test(config)
-
-    # Logger.instance().debug("program terminated")
+    routine.test(config, "output/best_model.pth")

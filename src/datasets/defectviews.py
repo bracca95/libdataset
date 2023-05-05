@@ -30,15 +30,15 @@ class DefectViews(CustomDataset):
 
     AUG_DIR = "img_augment"
 
-    def __init__(self, dataset_path: str, aug_off: Optional[List[str]], aug_on: Optional[List[str]], crop_size: int, img_size: Optional[int] = None, filt: Optional[List[str]] = None):
+    def __init__(self, dataset_path: str, aug_off: Optional[List[str]], aug_on: Optional[List[str]], crop_size: int, img_size: Optional[int] = None):
         self.dataset_path: str = dataset_path
         self.dataset_aug_path: str = os.path.join(os.path.dirname(self.dataset_path), self.AUG_DIR)
-        self.filt: Optional[List[str]] = filt
+        self.filt: List[str] = list(self.label_to_idx.keys())
 
         self.augment_online: Optional[List[str]] = aug_on
         self.augment_offline: Optional[List[str]] = aug_off
         if self.augment_offline is not None:
-            self.augment_dataset()
+            self.augment_dataset(30)
 
         self.image_list: Optional[List[str]] = self.get_image_list(self.filt)
         self.label_list: Optional[List[int]] = self.get_label_list()
@@ -51,7 +51,7 @@ class DefectViews(CustomDataset):
         self.mean: Optional[float] = None
         self.std: Optional[float] = None
 
-    def get_image_list(self, filt: Optional[List[str]]) -> List[str]:
+    def get_image_list(self, filt: List[str]) -> List[str]:
         """Read all the filenames in the dataset directory
 
         Read and return all the filenames in the dataset directory. If filt is not None, it will read only the specified
@@ -70,7 +70,7 @@ class DefectViews(CustomDataset):
         
         image_list = image_list + extra_image_list
         
-        if filt is not None:
+        if len(filt) < len(self.filt):
             filenames = list(map(lambda x: os.path.basename(x), image_list))
             image_list = list(filter(lambda x: Tools.check_string(x.rsplit("_")[0], filt, True, False), filenames))
             image_list = list(map(lambda x: os.path.join(self.dataset_path, x), image_list))
@@ -100,15 +100,14 @@ class DefectViews(CustomDataset):
 
         return [self.label_to_idx[defect] for defect in label_list]
     
-    def augment_dataset(self):
+    def augment_dataset(self, iters: int):
         """Perform offline augmentation
         
         Increase the number of available samples with augmentation techniques, if required in config. Offline
         augmentation can work on a limited set of classes; indeed, it should be used if there are not enough samples
         for each class.
 
-        Args:
-            classes (Optional[List[str]]): the classes that must be augmented
+        iters (int): number of augmentation iteration for the same image
         """
         
         Logger.instance().debug("increasing the number of images...")
@@ -120,8 +119,8 @@ class DefectViews(CustomDataset):
         else:
             os.makedirs(self.dataset_aug_path)
         
-        image_list = self.get_image_list(self.augment_offline) # "break", "mark", "scratch"
-        Processing.store_augmented_images(image_list, self.dataset_aug_path)
+        image_list = self.get_image_list(self.augment_offline)
+        Processing.store_augmented_images(image_list, self.dataset_aug_path, iters)
 
         Logger.instance().debug("dataset augmentatio completed")
         
@@ -254,4 +253,4 @@ class BubblePoint(DefectViews):
     idx_to_label = Tools.invert_dict(label_to_idx)
 
     def __init__(self, dataset_path: str, aug_on: Optional[List[str]], crop_size: int, img_size: Optional[int] = None):
-        super().__init__(dataset_path, aug_off=None, aug_on=aug_on, crop_size=crop_size, img_size=img_size, filt=["bubble", "point"])
+        super().__init__(dataset_path, aug_off=None, aug_on=aug_on, crop_size=crop_size, img_size=img_size)

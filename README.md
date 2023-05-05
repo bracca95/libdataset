@@ -13,8 +13,21 @@ Your own dataset can be built by inheriting from the abstract class `CustomDatas
 "image_size": int (after crop, reshape can be applied),
 "augment_online": List[str] (classes that undergo online augmentation),
 "augment_offline": List[str] (classes that undergo offline augmentation),
-"dataset_mean": List[float] (Grayscale/RGB)
+"dataset_mean": List[float] (Grayscale/RGB),
 "dataset_std": List[float] (Grayscale/RGB)
+```
+
+If ProtoNet is required, add a new fields "fsl":
+```
+"fsl": {
+  "episodes": int (suggested 100),
+  "train_n_way": int,
+  "train_k_shot_s": int
+  "train_k_shot_q": int,
+  "test_n_way": int,
+  "test_k_shot_s": int,
+  "test_k_shot_q": int
+}
 ```
 
 ## Models

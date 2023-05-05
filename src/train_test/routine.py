@@ -30,7 +30,7 @@ class TrainTest(ABC):
         ...
 
     @abstractmethod
-    def test(self, config: Config):
+    def test(self, config: Config, model_path: str):
         ...
 
     def get_subset_info(self, subset_str_id: str) -> Optional[SubsetInfo]:
