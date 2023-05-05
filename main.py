@@ -1,16 +1,20 @@
+import os
 import sys
 import torch
 import random
 import numpy as np
 
 from src.models.model_utils import Model
+from src.models.FSL.ProtoNet.protonet import ProtoNet
 from src.train_test.routine import TrainTestExample
+from src.train_test.proto_routine import ProtoRoutine
 from src.datasets.defectviews import DefectViews
 from src.datasets.dataset_utils import DatasetBuilder
 from src.utils.config_parser import Config
 from src.utils.tools import Logger
+from config.consts import General as _CG
 
-SEED = 1234
+SEED = 1234         # with the first protonet implementation I used 7
 
 random.seed(SEED)
 np.random.seed(SEED)
@@ -38,13 +42,17 @@ if __name__=="__main__":
         DefectViews.compute_mean_std(dataset, config)
         sys.exit(0)
 
+    ## TODO: Create model instantiator
     # train, (val), test split
-    model = Model()
+    model = ProtoNet().to(_CG.DEVICE)
+    
+    # split dataset
     subsets_dict = DefectViews.split_dataset(dataset, [0.8])
-    example = TrainTestExample(model, dataset, subsets_dict)
-
-    example.train()
-    example.test()
+    
+    # train test
+    routine = ProtoRoutine(model, dataset, subsets_dict)
+    routine.train(config)
+    routine.test(config)
 
     # if config.mode == "mlp":
     #     Logger.instance().debug("running MLP")

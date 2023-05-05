@@ -12,7 +12,7 @@ from src.utils.tools import Logger
 
 class Processing:
 
-    ITERS = 10
+    ITERS = 20
     offline_transforms = transforms.RandomOrder([
         transforms.RandomCrop((256, 256), pad_if_needed=True),
         transforms.RandomHorizontalFlip(0.5),

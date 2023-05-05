@@ -146,8 +146,9 @@ class DefectViews(CustomDataset):
         
         img_pil = Image.open(path).convert("L")
 
-        # crop
-        img_pil = Processing.crop_no_padding(img_pil, self.crop_size, path)
+        # crop (augmented images are already square-shaped, do not crop!)
+        if self.dataset_aug_path not in path:
+            img_pil = Processing.crop_no_padding(img_pil, self.crop_size, path)
         
         # resize (if required)
         if self.img_size is not None:

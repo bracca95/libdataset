@@ -4,12 +4,25 @@
     "batch_size": 32,
     "epochs": 100,
     "crop_size": 28,
-    "image_size": null,
+    "image_size": 105,
     "augment_online": null,
     "augment_offline": [
         "break",
         "mark"
     ],
-    "dataset_mean": null,
-    "dataset_std": null
+    "dataset_mean": [
+        0.5286089777946472
+    ],
+    "dataset_std": [
+        0.08517227321863174
+    ],
+    "fsl": {
+        "episodes": 100,
+        "train_n_way": 3,
+        "train_k_shot_s": 2,
+        "train_k_shot_q": 2,
+        "test_n_way": 3,
+        "test_k_shot_s": 2,
+        "test_k_shot_q": 2
+    }
 }
