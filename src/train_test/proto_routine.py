@@ -5,14 +5,13 @@ import numpy as np
 
 from tqdm import tqdm
 from torch import nn
-from typing import Optional
-from torch.utils.data import random_split, DataLoader
+from torch.utils.data import DataLoader
 
 from src.datasets.defectviews import DefectViews
 from src.models.FSL.ProtoNet.proto_batch_sampler import PrototypicalBatchSampler
 from src.models.FSL.ProtoNet.proto_loss import prototypical_loss as loss_fn
-from src.models.FSL.ProtoNet.protonet import ProtoNet
-from src.utils.tools import Tools, Logger
+from src.models.FSL.ProtoNet.proto_loss import proto_test
+from src.utils.tools import Tools, Logger, TBWriter
 from src.utils.config_parser import Config
 from src.datasets.defectviews import DefectViews
 from src.train_test.routine import TrainTest
@@ -27,6 +26,8 @@ class ProtoRoutine(TrainTest):
         self.learning_rate = 0.001
         self.lr_scheduler_gamma = 0.5
         self.lr_scheduler_step = 20
+
+        self.writer = TBWriter.instance().get_writer()
 
     def init_loader(self, config: Config, split_set: str):
         current_subset = self.get_subset_info(split_set)
@@ -78,11 +79,9 @@ class ProtoRoutine(TrainTest):
 
         for epoch in range(config.epochs):
             Logger.instance().debug(f"=== Epoch: {epoch} ===")
-            tr_iter = iter(trainloader)
             self.model.train()
-            for batch in tqdm(tr_iter):
+            for x, y in tqdm(trainloader):
                 optim.zero_grad()
-                x, y = batch
                 x, y = x.to(_CG.DEVICE), y.to(_CG.DEVICE)
                 model_output = self.model(x)
                 loss, acc = loss_fn(model_output, target=y, n_support=config.fsl.train_k_shot_s)
@@ -94,6 +93,9 @@ class ProtoRoutine(TrainTest):
             avg_loss = np.mean(train_loss[-config.fsl.episodes:])
             avg_acc = np.mean(train_acc[-config.fsl.episodes:])
             lr_scheduler.step()
+            
+            self.writer.add_scalar("Loss", avg_loss, epoch)
+            self.writer.add_scalar("Accuracy", avg_acc, epoch)
             Logger.instance().debug(f"Avg Train Loss: {avg_loss}, Avg Train Acc: {avg_acc}")
             
             # if validation is required
@@ -122,6 +124,8 @@ class ProtoRoutine(TrainTest):
 
             torch.save(self.model.state_dict(), last_model_path)
 
+        self.writer.close()
+
         for name in ['train_loss', 'train_acc', 'val_loss', 'val_acc']:
             self.save_list_to_file(os.path.join(out_folder, name + '.txt'), locals()[name])
 
@@ -140,18 +144,31 @@ class ProtoRoutine(TrainTest):
         self.model.load_state_dict(torch.load(model_path))
         testloader = self.init_loader(config, self.test_str)
         
-        avg_acc = list()
-        self.model.eval()
-        for epoch in tqdm(range(10)):
-            test_iter = iter(testloader)
-            for batch in test_iter:
-                x, y = batch
-                x, y = x.to(_CG.DEVICE), y.to(_CG.DEVICE)
-                model_output = self.model(x)
-                _, acc = loss_fn(model_output, target=y, n_support=config.fsl.test_k_shot_s)
-                avg_acc.append(acc.item())
+        legacy_avg_acc = list()
+        acc_per_epoch = { i: torch.FloatTensor().to(_CG.DEVICE) for i in range(len(self.test_info.info_dict.keys())) }
         
-        avg_acc = np.mean(avg_acc)
-        Logger.instance().debug(f"Test Acc: {avg_acc}")
+        self.model.eval()
+        with torch.no_grad():
+            for epoch in tqdm(range(10)):
+                score_per_class = { i: torch.FloatTensor().to(_CG.DEVICE) for i in range(len(self.test_info.info_dict.keys())) }
+                for x, y in testloader:
+                    x, y = x.to(_CG.DEVICE), y.to(_CG.DEVICE)
+                    y_pred = self.model(x)
 
-        return avg_acc
+                    # (overall accuracy [legacy], accuracy per class)
+                    legacy_acc, acc_vals = proto_test(y_pred, target=y, n_support=config.fsl.test_k_shot_s)
+                    legacy_avg_acc.append(legacy_acc.item())
+                    for k, v in acc_vals.items():
+                        score_per_class[k] = torch.cat((score_per_class[k], v.reshape(1,)))
+                
+                avg_score_class = { k: torch.mean(v) for k, v in score_per_class.items() }
+                Logger.instance().debug(f"at epoch {epoch}, average test accuracy: {avg_score_class}")
+
+                for k, v in avg_score_class.items():
+                    acc_per_epoch[k] = torch.cat((acc_per_epoch[k], v.reshape(1,)))
+
+            avg_acc_epoch = { k: torch.mean(v) for k, v in acc_per_epoch.items() }
+            Logger.instance().debug(f"Accuracy on epochs: {avg_acc_epoch}")
+            
+            legacy_avg_acc = np.mean(legacy_avg_acc)
+            Logger.instance().debug(f"Legacy test accuracy: {legacy_avg_acc}")

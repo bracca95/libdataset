@@ -6,7 +6,7 @@ output/
 
 # specific files
 .DS_Store
-log.log
+*.log
 processed_json.json
 
 # extensions

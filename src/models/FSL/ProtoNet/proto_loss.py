@@ -2,6 +2,8 @@ import torch
 from torch.nn import functional as F
 from torch.nn.modules import Module
 
+from config.consts import General as _CG
+
 
 class PrototypicalLoss(Module):
     '''
@@ -81,4 +83,39 @@ def prototypical_loss(recons, target, n_support):
     _, y_hat = log_p_y.max(2)
     acc_val = y_hat.eq(target_inds.squeeze(2)).float().mean()
 
-    return loss_val,  acc_val
+    return loss_val, acc_val
+
+
+def proto_test(recons, target, n_support):
+    classes = torch.unique(target)
+    n_classes = len(classes)
+    mapping = {i: classes[i].item() for i in range(n_classes)}
+
+    # assuming n_query, n_target constants
+    numel_set = len(torch.nonzero(target == classes[0]).view(-1))   # numel for support + query
+    n_query = numel_set - n_support
+
+    # retrieve support and query indexes
+    support_idxs, query_idxs = [], torch.LongTensor().to(_CG.DEVICE)
+    for c in classes:
+        s, q = torch.split(torch.nonzero(target == c).view(-1), [n_support, n_query])
+        support_idxs.append(s)  # 3 tensors with 5 samples each
+        query_idxs = torch.cat((query_idxs, q))
+
+    # use retrieved indexes to compute mean of 5 (idx_list) elements per class (output.size = n_classes * flatten_features)
+    prototypes = torch.stack([recons[idx_list].mean(0) for idx_list in support_idxs])
+    query_samples = recons[query_idxs.view(-1)]
+    dists = euclidean_dist(query_samples, prototypes)   # dim: (n_cls * sam_per_class, n_classes)
+
+    # softmax of negative distance otherwise the softmax is negative (the highest value must be the closest)
+    log_p_y = F.log_softmax(-dists, dim=1).view(n_classes, n_query, -1)
+
+    target_inds = torch.arange(0, n_classes).to(_CG.DEVICE)
+    target_inds = target_inds.view(n_classes, 1, 1)
+    target_inds = target_inds.expand(n_classes, n_query, 1).long()
+
+    _, y_hat = log_p_y.max(2)
+    acc_overall = y_hat.eq(target_inds.squeeze(2)).float().mean()
+    acc_vals = { c: y_hat[c].eq(target_inds.squeeze(2)[c]).float().mean() for c in range(n_classes) }
+
+    return acc_overall, { v: acc_vals[i] for i, v in enumerate(mapping.values()) }

@@ -45,7 +45,6 @@ if __name__=="__main__":
     ## TODO: Create model instantiator
     ## TODO: online augmentation
     ## TODO: tensorboard
-    ## TODO: improvements to FIXME
     # train, (val), test split
     model = ProtoNet().to(_CG.DEVICE)
     
@@ -54,5 +53,8 @@ if __name__=="__main__":
     
     # train test
     routine = ProtoRoutine(model, dataset, subsets_dict)
-    routine.train(config)
+    if not os.path.exists(os.path.join(os.getcwd(), "output/best_model.pth")):
+        routine.train(config)
+    else:
+        Logger.instance().warning("A model exists in output dir. Remove it or rename it if you want to train again.")
     routine.test(config, "output/best_model.pth")
