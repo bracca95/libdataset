@@ -1,9 +1,12 @@
+import torch
+
 from abc import ABC, abstractmethod
 from torch import nn
 from typing import Optional
 from src.datasets.defectviews import DefectViews
 
 from src.utils.tools import Logger
+from src.utils.config_parser import Config
 from src.datasets.defectviews import DefectViews
 from src.datasets.dataset_utils import SubsetInfo
 from config.consts import SubsetsDict, General
@@ -23,11 +26,11 @@ class TrainTest(ABC):
         self.test_info: Optional[SubsetInfo] = self.get_subset_info(self.test_str)
 
     @abstractmethod
-    def train(self):
+    def train(self, config: Config):
         ...
 
     @abstractmethod
-    def test(self):
+    def test(self, config: Config, model_path: str):
         ...
 
     def get_subset_info(self, subset_str_id: str) -> Optional[SubsetInfo]:
@@ -65,8 +68,8 @@ class TrainTestExample(TrainTest):
     def __init__(self, model: nn.Module, dataset: DefectViews, subsets_dict: Optional[SubsetsDict]=None):
         super().__init__(model, dataset, subsets_dict)
 
-    def train(self):
-        Logger.instance().debug("train example")
+    def train(self, config: Config):
+        Logger.instance().debug("train, void example")
 
-    def test(self):
-        Logger.instance().debug("test example")
+    def test(self, config: Config, model_path: str):
+        Logger.instance().debug("test, void example")

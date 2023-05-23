@@ -30,7 +30,7 @@ class DatasetBuilder:
     @staticmethod
     def load_dataset(config: Config) -> CustomDataset:
         if config.dataset_type == "all":
-            return DefectViews(config.dataset_path, config.augment_offline, config.augment_online, config.crop_size)
+            return DefectViews(config.dataset_path, config.augment_offline, config.augment_online, config.crop_size, config.image_size)
         elif config.dataset_type == "binary":
             return BubblePoint(config.dataset_path, config.augment_online, config.crop_size)
         else:

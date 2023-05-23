@@ -12,7 +12,6 @@ from src.utils.tools import Logger
 
 class Processing:
 
-    ITERS = 10
     offline_transforms = transforms.RandomOrder([
         transforms.RandomCrop((256, 256), pad_if_needed=True),
         transforms.RandomHorizontalFlip(0.5),
@@ -78,12 +77,13 @@ class Processing:
         return img
     
     @staticmethod
-    def store_augmented_images(img_list: List[str], new_dir: str):
+    def store_augmented_images(img_list: List[str], new_dir: str, iters: int):
         """Save the augmented images in the specified folder
 
         Args:
             img_list (List[str]): the images that have to be augmented
             new_dir (str): output directory
+            iters (int): number of iterations for the same image
         """
         
         for img_path in tqdm(img_list):
@@ -92,7 +92,7 @@ class Processing:
 
             # remove the following line when random rotation is used instead
             img_pil = Processing.rotate_image(img_pil, prob=0.5)
-            for it in range(Processing.ITERS):
+            for it in range(iters):
                 img_aug = Processing.offline_transforms_v2(img_pil)
                 new_filename = f"{img_filename}_{it}.{img_ext}"
                 img_aug.save(os.path.join(new_dir, new_filename))

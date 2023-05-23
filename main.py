@@ -1,3 +1,4 @@
+import os
 import sys
 import torch
 import random
@@ -9,8 +10,9 @@ from src.datasets.defectviews import DefectViews
 from src.datasets.dataset_utils import DatasetBuilder
 from src.utils.config_parser import Config
 from src.utils.tools import Logger
+from config.consts import General as _CG
 
-SEED = 1234
+SEED = 1234         # with the first protonet implementation I used 7
 
 random.seed(SEED)
 np.random.seed(SEED)
@@ -38,33 +40,13 @@ if __name__=="__main__":
         DefectViews.compute_mean_std(dataset, config)
         sys.exit(0)
 
-    # train, (val), test split
-    model = Model()
+    # instantiate model
+    model = Model().to(_CG.DEVICE)
+    
+    # split dataset
     subsets_dict = DefectViews.split_dataset(dataset, [0.8])
-    example = TrainTestExample(model, dataset, subsets_dict)
-
-    example.train()
-    example.test()
-
-    # if config.mode == "mlp":
-    #     Logger.instance().debug("running MLP")
-    #     model = MLP(dataset.in_dim * dataset.in_dim, dataset.out_dim)
-    # elif config.mode == "rescnn":
-    #     Logger.instance().debug("running ResCNN")
-    #     model = ResCNN(dataset.in_dim, dataset.out_dim)
-    # elif config.mode == "cnn":
-    #     Logger.instance().debug("running CNN")
-    #     model = CNN(dataset.out_dim)
-    # else:
-    #     raise ValueError("either 'mlp' or 'cnn' or 'rescnn'")
-
-    # if config.train:
-    #     Logger.instance().debug("Starting training...")
-    #     trainer = Trainer(trainset.tt_set, model)
-    #     trainer.train(config)
-    # else:
-    #     Logger.instance().debug("Starting testing...")
-    #     tester = Tester(testset, model, "checkpoints/model.pt")
-    #     tester.test(config)
-
-    # Logger.instance().debug("program terminated")
+    
+    # train/test
+    routine = TrainTestExample(model, dataset, subsets_dict)
+    routine.train(config)
+    routine.test(config, model_path)
