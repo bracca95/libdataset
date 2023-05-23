@@ -220,7 +220,7 @@ class DefectViews(CustomDataset):
         if len(split_ratios) == 1:
             split_lens = [train_len, len(dataset) - train_len]
         elif len(split_ratios) == 3:
-            val_len = train_len - int(len(dataset) * split_ratios[1])
+            val_len = int(len(dataset) * split_ratios[1])
             split_lens = [train_len, val_len, len(dataset) - (train_len + val_len)]
         else:
             raise ValueError(f"split_ratios argument accepts either a list of 1 value (train,test) or 3 (train,val,test)")

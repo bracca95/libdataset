@@ -4,7 +4,8 @@ import os
 import sys
 import json
 
-from dataclasses import dataclass
+from functools import reduce
+from dataclasses import dataclass, field
 from typing import Optional, Union, List, Any, Callable, Iterable, Type, cast
 
 from src.utils.tools import Tools, Logger
@@ -102,6 +103,7 @@ class Fsl:
 class Config:
     dataset_path: str = _CG.DEFAULT_STR
     dataset_type: str = _CG.DEFAULT_STR
+    dataset_splits: List[float] = field(default_factory=list)
     batch_size: int = _CG.DEFAULT_INT
     epochs: int = _CG.DEFAULT_INT
     crop_size: int = _CG.DEFAULT_INT
@@ -126,6 +128,7 @@ class Config:
                 
         try:
             dataset_type = from_str(obj.get(_CC.CONFIG_DATASET_TYPE))
+            dataset_splits = from_list(lambda x: from_float(x), obj.get(_CC.CONFIG_DATASET_SPLITS))
             batch_size = from_int(obj.get(_CC.CONFIG_BATCH_SIZE))
             epochs = from_int(obj.get(_CC.CONFIG_EPOCHS))
             crop_size = from_int(obj.get(_CC.CONFIG_CROP_SIZE))
@@ -146,14 +149,23 @@ class Config:
         if augment_offline is not None:
             if len(augment_offline) == 0:
                 augment_offline = None
+
+        if len(dataset_splits) not in (1, 3):
+            raise ValueError("`dataset_splits` must have len == 1 (train/test) or len == 3 (train/val/test)")
+        
+        if len(dataset_splits) == 3:
+            if 1.0-_CG.EPS < reduce(lambda a,b: a+b, dataset_splits) < 1.0+_CG.EPS:
+                pass
+            else:
+                raise ValueError("the sum for dataset_splits must be 1")
         
         Logger.instance().info(f"Config deserialized: " +
-            f"dataset_path: {dataset_path}, dataset_type: {dataset_type}, augment_online: {augment_online}, " +
-            f"augment_offline: {augment_offline}, batch_size {batch_size}, epochs: {epochs}, " +
+            f"dataset_path: {dataset_path}, dataset_type: {dataset_type}, dataset_splits: {dataset_splits}, " +
+            f"augment_online: {augment_online}, augment_offline: {augment_offline}, batch_size {batch_size}, epochs: {epochs}, " +
             f"dataset mean: {dataset_mean}, dataset_std: {dataset_std}, crop_size: {crop_size}, image_size: {image_size}, " +
             f"fsl: {fsl}")
         
-        return Config(dataset_path, dataset_type, batch_size, epochs, crop_size, image_size, augment_online, augment_offline, dataset_mean, dataset_std, fsl)
+        return Config(dataset_path, dataset_type, dataset_splits, batch_size, epochs, crop_size, image_size, augment_online, augment_offline, dataset_mean, dataset_std, fsl)
 
     def serialize(self, directory: str, filename: str):
         result: dict = {}
@@ -168,6 +180,7 @@ class Config:
         # if you do not want to write null values, add a field to result if and only if self.field is not None
         result[_CC.CONFIG_DATASET_PATH] = from_str(self.dataset_path)
         result[_CC.CONFIG_DATASET_TYPE] = from_str(self.dataset_type)
+        result[_CC.CONFIG_DATASET_SPLITS] = from_list(lambda x: from_float(x), self.dataset_splits)
         result[_CC.CONFIG_BATCH_SIZE] = from_int(self.batch_size)
         result[_CC.CONFIG_EPOCHS] = from_int(self.epochs)
         result[_CC.CONFIG_CROP_SIZE] = from_int(self.crop_size)

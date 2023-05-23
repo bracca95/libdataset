@@ -9,6 +9,7 @@ Edit the `config/config.json` file to start
 ```
 "dataset_path": string,
 "dataset_type": {'all' (all defects), 'binary' (bubble vs points)},
+"dataset_splits": List[float],
 "batch_size": int,
 "epochs": int,
 "crop_size": int (suggested 28),

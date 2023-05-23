@@ -44,7 +44,7 @@ if __name__=="__main__":
     model = Model().to(_CG.DEVICE)
     
     # split dataset
-    subsets_dict = DefectViews.split_dataset(dataset, [0.8])
+    subsets_dict = DefectViews.split_dataset(dataset, config.dataset_splits)
     
     # train/test
     routine = TrainTestExample(model, dataset, subsets_dict)
