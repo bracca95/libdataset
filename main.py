@@ -5,9 +5,7 @@ import random
 import numpy as np
 
 from src.models.model_utils import Model
-from src.models.FSL.ProtoNet.protonet import ProtoNet
 from src.train_test.routine import TrainTestExample
-from src.train_test.proto_routine import ProtoRoutine
 from src.datasets.defectviews import DefectViews
 from src.datasets.dataset_utils import DatasetBuilder
 from src.utils.config_parser import Config
@@ -42,23 +40,13 @@ if __name__=="__main__":
         DefectViews.compute_mean_std(dataset, config)
         sys.exit(0)
 
-    # store config so that you know what you have run :)
-    config.serialize(os.path.join(os.getcwd(), "output"), "out_config.json")
-
-    ## TODO: Create model instantiator
-    ## TODO: online augmentation
-    ## TODO: tensorboard
-    # train, (val), test split
-    model = ProtoNet().to(_CG.DEVICE)
-    model_path = os.path.join(os.getcwd(), "output/best_model.pth")
+    # instantiate model
+    model = Model().to(_CG.DEVICE)
     
     # split dataset
     subsets_dict = DefectViews.split_dataset(dataset, [0.8])
     
     # train/test
-    routine = ProtoRoutine(model, dataset, subsets_dict)
-    if not os.path.exists(model_path) or (os.path.exists(model_path) and not os.path.isfile(model_path)):
-        routine.train(config)
-    else:
-        Logger.instance().warning("A model exists in output dir. Remove it or rename it if you want to train again.")
+    routine = TrainTestExample(model, dataset, subsets_dict)
+    routine.train(config)
     routine.test(config, model_path)

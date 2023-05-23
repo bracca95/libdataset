@@ -68,8 +68,8 @@ class TrainTestExample(TrainTest):
     def __init__(self, model: nn.Module, dataset: DefectViews, subsets_dict: Optional[SubsetsDict]=None):
         super().__init__(model, dataset, subsets_dict)
 
-    def train(self):
-        Logger.instance().debug("train example")
+    def train(self, config: Config):
+        Logger.instance().debug("train, void example")
 
-    def test(self):
-        Logger.instance().debug("test example")
+    def test(self, config: Config, model_path: str):
+        Logger.instance().debug("test, void example")
