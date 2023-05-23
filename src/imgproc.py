@@ -53,7 +53,7 @@ class Processing:
             if path is not None:
                 Logger.instance().debug(f"image size for {os.path.basename(path)} is less than required. Upscaling.")
         else:
-            # CHECK: the else condition fits well for almost square-shaped images but not for scratches or breaks
+            # the else condition fits well for almost square-shaped images but not for scratches or breaks
             img = transforms.CenterCrop((crop_size, crop_size))(img)
 
         return img

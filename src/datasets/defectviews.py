@@ -145,8 +145,11 @@ class DefectViews(CustomDataset):
         
         img_pil = Image.open(path).convert("L")
 
-        # crop (augmented images are already square-shaped, do not crop!)
-        if self.dataset_aug_path not in path:
+        # crop
+        # augmented images are already square-shaped, do not crop!
+        # scratches, breaks and marks are likely not to be square-shaped, so cropping will lose information
+        # CHECK: I could crop only bubbles, since they are the only ones that have to preserve proportions strictly
+        if self.dataset_aug_path not in path and not Tools.check_string(os.path.basename(path), ["scratch", "break", "mark"], False, False):
             img_pil = Processing.crop_no_padding(img_pil, self.crop_size, path)
         
         # resize (if required)

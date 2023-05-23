@@ -69,14 +69,14 @@ class Tools:
     def check_string(s: str, options: List[str], case_sensitive: bool, exact_match: bool) -> bool:
         if case_sensitive:
             if exact_match:
-                return any(map(lambda x: s == x, options))
+                return any(map(lambda x: x == s, options))
             else:
-                return any(map(lambda x: s in x, options))
+                return any(map(lambda x: x in s, options))
         else:
             if exact_match:
-                return any(map(lambda x: s.lower() == x.lower(), options))
+                return any(map(lambda x: x.lower() == s.lower(), options))
             else:
-                return any(map(lambda x: s.lower() in x.lower(), options))
+                return any(map(lambda x: x.lower() in s.lower(), options))
 
     @staticmethod
     def validate_path(s: str) -> str:
