@@ -107,7 +107,7 @@ class Config:
     batch_size: int = _CG.DEFAULT_INT
     epochs: int = _CG.DEFAULT_INT
     crop_size: int = _CG.DEFAULT_INT
-    image_size: Optional[int] = None
+    image_size: int = _CG.DEFAULT_INT
     augment_online: Optional[List[str]] = None
     augment_offline: Optional[List[str]] = None
     dataset_mean: Optional[List[float]] = None
@@ -132,7 +132,7 @@ class Config:
             batch_size = from_int(obj.get(_CC.CONFIG_BATCH_SIZE))
             epochs = from_int(obj.get(_CC.CONFIG_EPOCHS))
             crop_size = from_int(obj.get(_CC.CONFIG_CROP_SIZE))
-            image_size = from_union([from_none, from_int], obj.get(_CC.CONFIG_IMAGE_SIZE))
+            image_size = from_int(obj.get(_CC.CONFIG_IMAGE_SIZE))
             augment_online = from_union([lambda x: from_list(from_str, x), from_none], obj.get(_CC.CONFIG_AUGMENT_ONLINE))
             augment_offline = from_union([lambda x: from_list(from_str, x), from_none], obj.get(_CC.CONFIG_AUGMENT_OFFLINE))
             dataset_mean = from_union([lambda x: from_list(from_float, x), from_none], obj.get(_CC.CONFIG_DATASET_MEAN))
@@ -184,7 +184,7 @@ class Config:
         result[_CC.CONFIG_BATCH_SIZE] = from_int(self.batch_size)
         result[_CC.CONFIG_EPOCHS] = from_int(self.epochs)
         result[_CC.CONFIG_CROP_SIZE] = from_int(self.crop_size)
-        result[_CC.CONFIG_IMAGE_SIZE] = from_union([from_none, from_int], self.image_size)
+        result[_CC.CONFIG_IMAGE_SIZE] = from_int(self.image_size)
         result[_CC.CONFIG_AUGMENT_ONLINE] = from_union([lambda x: from_list(from_str, x), from_none], self.augment_online)
         result[_CC.CONFIG_AUGMENT_OFFLINE] = from_union([lambda x: from_list(from_str, x), from_none], self.augment_offline)
         result[_CC.CONFIG_DATASET_MEAN] = from_union([lambda x: from_list(from_float, x), from_none], self.dataset_mean)

@@ -30,7 +30,7 @@ class DefectViews(CustomDataset):
 
     AUG_DIR = "img_augment"
 
-    def __init__(self, dataset_path: str, aug_off: Optional[List[str]], aug_on: Optional[List[str]], crop_size: int, img_size: Optional[int] = None):
+    def __init__(self, dataset_path: str, aug_off: Optional[List[str]], aug_on: Optional[List[str]], crop_size: int, img_size: int):
         self.dataset_path: str = dataset_path
         self.dataset_aug_path: str = os.path.join(os.path.dirname(self.dataset_path), self.AUG_DIR)
         self.filt: List[str] = list(self.label_to_idx.keys())
@@ -45,7 +45,7 @@ class DefectViews(CustomDataset):
 
         self.crop_size: int = crop_size
         self.img_size: Optional[int] = img_size
-        self.in_dim = self.img_size if self.img_size is not None else self.crop_size
+        self.in_dim = self.img_size
         self.out_dim = len(self.label_to_idx)
 
         self.mean: Optional[float] = None
@@ -152,9 +152,8 @@ class DefectViews(CustomDataset):
         if self.dataset_aug_path not in path and not Tools.check_string(os.path.basename(path), ["scratch", "break", "mark"], False, False):
             img_pil = Processing.crop_no_padding(img_pil, self.crop_size, path)
         
-        # resize (if required)
-        if self.img_size is not None:
-            img_pil = transforms.Resize((self.img_size, self.img_size))(img_pil)
+        # resize
+        img_pil = transforms.Resize((self.img_size, self.img_size))(img_pil)
 
         # rescale [0-255](int) to [0-1](float)
         img = transforms.ToTensor()(img_pil)
@@ -255,5 +254,5 @@ class BubblePoint(DefectViews):
 
     idx_to_label = Tools.invert_dict(label_to_idx)
 
-    def __init__(self, dataset_path: str, aug_on: Optional[List[str]], crop_size: int, img_size: Optional[int] = None):
+    def __init__(self, dataset_path: str, aug_on: Optional[List[str]], crop_size: int, img_size: int):
         super().__init__(dataset_path, aug_off=None, aug_on=aug_on, crop_size=crop_size, img_size=img_size)

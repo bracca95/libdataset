@@ -5,6 +5,8 @@ from torch.utils.data import Dataset
 
 class CustomDataset(ABC, Dataset):
 
+    label_to_idx = {}
+
     @abstractmethod
     def get_image_list(self, filt: Optional[List[str]]) -> List[str]:
         ...
