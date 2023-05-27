@@ -2,6 +2,7 @@
 .vscode/
 __pycache__/
 runs/
+wandb/
 output/
 
 # specific files
@@ -12,3 +13,5 @@ processed_json.json
 # extensions
 *.txt
 *.pt
+*.pth
+*.pyc

@@ -2,10 +2,13 @@ from abc import ABC, abstractmethod
 from typing import Optional, List
 from torch.utils.data import Dataset
 
+from src.utils.tools import Tools
+
 
 class CustomDataset(ABC, Dataset):
 
     label_to_idx = {}
+    idx_to_label = Tools.invert_dict(label_to_idx)
 
     @abstractmethod
     def get_image_list(self, filt: Optional[List[str]]) -> List[str]:
