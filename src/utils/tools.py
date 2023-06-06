@@ -5,9 +5,6 @@ import json
 import logging
 
 from typing import Type, Any, Union, Optional, List
-from torch.utils.data import DataLoader
-from torchvision.utils import make_grid
-from torch.utils.tensorboard import SummaryWriter
 
 from config.consts import T
 
@@ -191,35 +188,3 @@ class Logger:
 
     def critical(self, msg: str) -> None:
         self.logger.critical(msg)
-
-
-@Singleton
-class TBWriter:
-    """Singleton (instance object) for tensorboard's SummaryWriter
-
-    Could also be implemented with `with` statement (context manager)
-    
-    SeeAlso:
-        https://stackoverflow.com/a/3774396
-        https://realpython.com/python-with-statement/
-    """
-
-    def __init__(self):
-        self.__writer = SummaryWriter("runs")
-
-    def __enter__(self):
-        return self
-    
-    def __exit__(self):
-        # implement exception handling
-        self.__writer.close()
-
-    def get_writer(self) -> SummaryWriter:
-        return self.__writer
-    
-    @classmethod
-    def sample_images(cls, writer: SummaryWriter, loader: DataLoader):
-        example_data, examples_target = next(iter(loader))
-        img_grid = make_grid(example_data)
-        writer.add_image('images', img_grid)
-        writer.close()

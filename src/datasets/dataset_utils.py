@@ -4,7 +4,7 @@ from torch.utils.data import Subset
 
 from src.utils.config_parser import Config
 from src.datasets.staple_dataset import CustomDataset
-from src.datasets.defectviews import DefectViews, BubblePoint
+from src.datasets.defectviews import GlassOpt, GlassOptBckg, BubblePoint
 
 
 @dataclass
@@ -29,11 +29,13 @@ class DatasetBuilder:
 
     @staticmethod
     def load_dataset(config: Config) -> CustomDataset:
-        if config.dataset_type == "all":
-            return DefectViews(config.dataset_path, config.augment_offline, config.augment_online, config.crop_size, config.image_size)
+        if config.dataset_type == "opt6":
+            return GlassOpt(config.dataset_path, config.augment_offline, config.augment_online, config.crop_size, config.image_size)
+        elif config.dataset_type == "opt_bckg":
+            return GlassOptBckg(config.dataset_path, config.augment_offline, config.augment_online, config.crop_size, config.image_size)
         elif config.dataset_type == "binary":
             return BubblePoint(config.dataset_path, config.augment_online, config.crop_size, config.image_size)
         else:
-            raise ValueError("either `all` or `binary` for dataset_type")
+            raise ValueError("values allowed: {`opt6`, `opt_bckg`, `binary`} for dataset_type")
 
 

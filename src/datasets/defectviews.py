@@ -15,7 +15,7 @@ from config.consts import SubsetsDict
 from config.consts import General as _GC
 
 
-class DefectViews(CustomDataset):
+class GlassOpt(CustomDataset):
 
     label_to_idx = {
         "bubble": 0, 
@@ -29,6 +29,7 @@ class DefectViews(CustomDataset):
     idx_to_label = Tools.invert_dict(label_to_idx)
 
     AUG_DIR = "img_augment"
+    NO_CROP = ["scratch", "break", "mark"]
 
     def __init__(self, dataset_path: str, aug_off: Optional[List[str]], aug_on: Optional[List[str]], crop_size: int, img_size: int):
         self.dataset_path: str = dataset_path
@@ -65,15 +66,11 @@ class DefectViews(CustomDataset):
             List[str] containing the full path to the images
         """
         
-        extra_image_list = [f for f in glob(os.path.join(self.dataset_aug_path, "*.png"))] if self.augment_offline else []
-        image_list = [f for f in glob(os.path.join(self.dataset_path, "*.png"))]
-        
+        extra_image_list = glob(os.path.join(self.dataset_aug_path, "*.png")) if self.augment_offline else list()
+        image_list = glob(os.path.join(self.dataset_path, "*.png"))
         image_list = image_list + extra_image_list
         
-        if len(filt) < len(self.filt):
-            filenames = list(map(lambda x: os.path.basename(x), image_list))
-            image_list = list(filter(lambda x: Tools.check_string(x.rsplit("_")[0], filt, True, False), filenames))
-            image_list = list(map(lambda x: os.path.join(self.dataset_path, x), image_list))
+        image_list = list(filter(lambda x: Tools.check_string(os.path.basename(x).rsplit("_")[0], filt, True, False), image_list))
         
         if not all(map(lambda x: x.endswith(".png"), image_list)) or image_list == []:
             raise ValueError("incorrect image list. Check the provided path for your dataset.")
@@ -149,7 +146,7 @@ class DefectViews(CustomDataset):
         # augmented images are already square-shaped, do not crop!
         # scratches, breaks and marks are likely not to be square-shaped, so cropping will lose information
         # CHECK: I could crop only bubbles, since they are the only ones that have to preserve proportions strictly
-        if self.dataset_aug_path not in path and not Tools.check_string(os.path.basename(path), ["scratch", "break", "mark"], False, False):
+        if self.dataset_aug_path not in path and not Tools.check_string(os.path.basename(path), self.NO_CROP, False, False):
             img_pil = Processing.crop_no_padding(img_pil, self.crop_size, path)
         
         # resize
@@ -245,7 +242,26 @@ class DefectViews(CustomDataset):
         return len(self.image_list) # type: ignore
 
 
-class BubblePoint(DefectViews):
+class GlassOptBckg(GlassOpt):
+
+    label_to_idx = {
+        "background": 0,
+        "bubble": 1, 
+        "point": 2,
+        "break": 3,
+        "dirt": 4,
+        "mark": 5,
+        "scratch": 6
+    }
+
+    idx_to_label = Tools.invert_dict(label_to_idx)
+    NO_CROP = ["scratch", "break", "mark", "background"]
+
+    def __init__(self, dataset_path: str, aug_off: Optional[List[str]], aug_on: Optional[List[str]], crop_size: int, img_size: int):
+        super().__init__(dataset_path, aug_off=aug_off, aug_on=aug_on, crop_size=crop_size, img_size=img_size)
+
+
+class BubblePoint(GlassOpt):
 
     label_to_idx = {
         "bubble": 0,
