@@ -6,7 +6,6 @@ import numpy as np
 
 from src.models.model_utils import Model
 from src.train_test.routine import TrainTestExample
-from src.datasets.defectviews import GlassOpt
 from src.datasets.dataset_utils import DatasetBuilder
 from src.utils.config_parser import Config
 from src.utils.tools import Logger
@@ -37,14 +36,14 @@ if __name__=="__main__":
     # compute mean and variance of the dataset if not done yet
     if config.dataset_mean is None and config.dataset_std is None:
         Logger.instance().warning("No mean and std set: computing and storing values.")
-        GlassOpt.compute_mean_std(dataset, config)
+        DatasetBuilder.compute_mean_std(dataset, config)
         sys.exit(0)
 
     # instantiate model
     model = Model().to(_CG.DEVICE)
     
     # split dataset
-    subsets_dict = GlassOpt.split_dataset(dataset, config.dataset_splits)
+    subsets_dict = DatasetBuilder.split_dataset(dataset, config.dataset_splits)
     
     # train/test
     routine = TrainTestExample(model, dataset, subsets_dict)
