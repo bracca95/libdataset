@@ -27,6 +27,9 @@ class GlassOpt(CustomDataset):
     AUG_DIR = "img_augment"
     NO_CROP = ["scratch", "break", "mark"]
 
+    # https://stackoverflow.com/a/42583719
+    split_name = staticmethod(lambda x: os.path.basename(x).rsplit("_", -1)[0])
+
     def __init__(self, dataset_path: str, aug_off: Optional[List[str]], aug_on: Optional[List[str]], crop_size: int, img_size: int):
         self.dataset_path: str = dataset_path
         self.dataset_aug_path: str = os.path.join(os.path.dirname(self.dataset_path), self.AUG_DIR)
@@ -35,7 +38,7 @@ class GlassOpt(CustomDataset):
         self.augment_online: Optional[List[str]] = aug_on
         self.augment_offline: Optional[List[str]] = aug_off
         if self.augment_offline is not None:
-            self.augment_dataset(30)
+            self.augment_dataset(50)
 
         self.image_list: Optional[List[str]] = self.get_image_list(self.filt)
         self.label_list: Optional[List[int]] = self.get_label_list()
@@ -66,7 +69,7 @@ class GlassOpt(CustomDataset):
         image_list = glob(os.path.join(self.dataset_path, "*.png"))
         image_list = image_list + extra_image_list
         
-        image_list = list(filter(lambda x: Tools.check_string(os.path.basename(x).rsplit("_")[0], filt, True, False), image_list))
+        image_list = list(filter(lambda x: Tools.check_string(self.split_name(x), filt, True, False), image_list))
         
         if not all(map(lambda x: x.endswith(".png"), image_list)) or image_list == []:
             raise ValueError("incorrect image list. Check the provided path for your dataset.")
@@ -85,8 +88,7 @@ class GlassOpt(CustomDataset):
         if self.image_list is None:
             self.get_image_list(self.filt)
 
-        filenames = list(map(lambda x: os.path.basename(x), self.image_list))
-        label_list = list(map(lambda x: x.rsplit("_")[0], filenames))
+        label_list = list(map(lambda x: self.split_name(x), self.image_list))
        
         Logger.instance().debug(f"Labels used: {set(label_list)}")
         Logger.instance().debug(f"Number of images per class: { {i: label_list.count(i) for i in set(label_list)} }")
@@ -186,6 +188,56 @@ class GlassOptBckg(GlassOpt):
         super().__init__(dataset_path, aug_off=aug_off, aug_on=aug_on, crop_size=crop_size, img_size=img_size)
 
 
+class QPlusV1(GlassOpt):
+
+    label_to_idx = {
+        "mark": 0,
+        "glass_id": 1,
+        "dirt": 2,
+        "point": 3,
+        "scratch_light": 4,
+        "halo": 5,
+        "scratch_multi": 6,
+        "dust": 7,
+        "coating": 8,
+        "scratch_heavy": 9,
+        "dirt_halo": 10
+    }
+
+    idx_to_label = Tools.invert_dict(label_to_idx)
+    NO_CROP = ["mark", "glass_id", "dirt", "dirt_halo", "point", "scratch_light", "scratch_heavy", "scratch_multi", "dust", "halo", "coating"]
+    split_name = staticmethod(lambda x: os.path.basename(x).rsplit("_did", 1)[0])
+
+    def __init__(self, dataset_path: str, aug_off: Optional[List[str]], aug_on: Optional[List[str]], crop_size: int, img_size: int):
+        super().__init__(dataset_path, aug_off=None, aug_on=None, crop_size=crop_size, img_size=img_size)
+
+
+class QPlusV2(GlassOpt):
+
+    label_to_idx = {
+        "mark": 0,
+        "glass_id": 1,
+        "dirt": 2,
+        "point": 3,
+        "scratch_light": 4,
+        "halo": 5,
+        "scratch_multi": 6,
+        "dust": 7,
+        "coating": 8,
+        "scratch_heavy": 9,
+        "dirt_halo": 10,
+        "bubble": 11,
+        "bubble_hole": 12
+    }
+
+    idx_to_label = Tools.invert_dict(label_to_idx)
+    NO_CROP = list(label_to_idx.keys())
+    split_name = staticmethod(lambda x: os.path.basename(x).rsplit("_did", 1)[0])
+
+    def __init__(self, dataset_path: str, aug_off: Optional[List[str]], aug_on: Optional[List[str]], crop_size: int, img_size: int):
+        super().__init__(dataset_path, aug_off=None, aug_on=None, crop_size=crop_size, img_size=img_size)
+
+
 class BubblePoint(GlassOpt):
 
     label_to_idx = {
@@ -195,5 +247,5 @@ class BubblePoint(GlassOpt):
 
     idx_to_label = Tools.invert_dict(label_to_idx)
 
-    def __init__(self, dataset_path: str, aug_on: Optional[List[str]], crop_size: int, img_size: int):
+    def __init__(self, dataset_path: str, aug_off: Optional[List[str]], aug_on: Optional[List[str]], crop_size: int, img_size: int):
         super().__init__(dataset_path, aug_off=None, aug_on=aug_on, crop_size=crop_size, img_size=img_size)
