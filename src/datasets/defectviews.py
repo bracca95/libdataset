@@ -69,7 +69,7 @@ class GlassOpt(CustomDataset):
         image_list = glob(os.path.join(self.dataset_path, "*.png"))
         image_list = image_list + extra_image_list
         
-        image_list = list(filter(lambda x: Tools.check_string(self.split_name(x), filt, True, False), image_list))
+        image_list = list(filter(lambda x: Tools.check_string(self.split_name(x), filt, True, True), image_list))
         
         if not all(map(lambda x: x.endswith(".png"), image_list)) or image_list == []:
             raise ValueError("incorrect image list. Check the provided path for your dataset.")
