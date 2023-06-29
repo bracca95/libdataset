@@ -6,6 +6,7 @@ from typing import Optional
 
 from src.utils.tools import Logger
 from src.utils.config_parser import Config
+from src.models.model import Model
 from src.datasets.staple_dataset import CustomDataset
 from src.datasets.dataset_utils import SubsetInfo
 from config.consts import SubsetsDict, General
@@ -15,7 +16,7 @@ class TrainTest(ABC):
 
     train_str, val_str, test_str = General.DEFAULT_SUBSETS
     
-    def __init__(self, model: nn.Module, dataset: CustomDataset, subsets_dict: Optional[SubsetsDict]=None):
+    def __init__(self, model: Model, dataset: CustomDataset, subsets_dict: Optional[SubsetsDict]=None):
         self.model = model
         self.dataset = dataset
         self.subsets_dict = subsets_dict
@@ -64,11 +65,11 @@ class TrainTest(ABC):
 
 class TrainTestExample(TrainTest):
 
-    def __init__(self, model: nn.Module, dataset: CustomDataset, subsets_dict: Optional[SubsetsDict]=None):
+    def __init__(self, model: Model, dataset: CustomDataset, subsets_dict: Optional[SubsetsDict]=None):
         super().__init__(model, dataset, subsets_dict)
 
-    def train(self, config: Config):
-        Logger.instance().debug("train, void example")
+    def train(self):
+        Logger.instance().debug("train example")
 
-    def test(self, config: Config, model_path: str):
-        Logger.instance().debug("test, void example")
+    def test(self):
+        Logger.instance().debug("test example")
