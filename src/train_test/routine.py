@@ -2,7 +2,8 @@ import torch
 
 from abc import ABC, abstractmethod
 from torch import nn
-from typing import Optional
+from typing import Optional, Deque
+from collections import deque
 
 from src.utils.tools import Logger
 from src.utils.config_parser import Config
@@ -24,6 +25,8 @@ class TrainTest(ABC):
         self.train_info: Optional[SubsetInfo] = self.get_subset_info(self.train_str)
         self.val_info: Optional[SubsetInfo] = self.get_subset_info(self.val_str)
         self.test_info: Optional[SubsetInfo] = self.get_subset_info(self.test_str)
+
+        self.acc_var: Deque[float] = deque(maxlen=10)
 
     @abstractmethod
     def train(self, config: Config):
@@ -61,6 +64,25 @@ class TrainTest(ABC):
             Logger.instance().debug(f"{subset_str_id} has {len(classes)} classes: {info_dict}")
         
         return SubsetInfo(subset_str_id, self.subsets_dict[subset_str_id], info_dict)
+    
+
+    def check_stop_conditions(self, curr_acc: float, limit: float = 0.985, eps: float = 0.001) -> bool:
+        if curr_acc < limit:
+            return False
+        
+        if not len(self.acc_var) == self.acc_var.maxlen:
+            self.acc_var.append(curr_acc)
+            return False
+        
+        self.acc_var.popleft()
+        self.acc_var.append(curr_acc)
+
+        acc_var = torch.Tensor(list(self.acc_var))
+        if torch.max(acc_var) - torch.min(acc_var) > 2 * eps:
+            return False
+        
+        Logger.instance().warning(f"Raised stop iteration: last {len(self.acc_var)} increment below {2 * eps}.")
+        return True
 
 
 class TrainTestExample(TrainTest):
