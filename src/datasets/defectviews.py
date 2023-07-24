@@ -249,3 +249,22 @@ class BubblePoint(GlassOpt):
 
     def __init__(self, dataset_path: str, aug_off: Optional[List[str]], aug_on: Optional[List[str]], crop_size: int, img_size: int):
         super().__init__(dataset_path, aug_off=None, aug_on=aug_on, crop_size=crop_size, img_size=img_size)
+
+
+class GlassOptTricky(GlassOpt):
+
+    label_to_idx = {
+        "background": 0,
+        "bubble": 1, 
+        "point": 2,
+        "dirt": 3,
+        "scratch": 4
+    }
+
+    idx_to_label = Tools.invert_dict(label_to_idx)
+
+    NO_CROP = ["background", "scratch", "dirt"]
+    split_name = staticmethod(lambda x: os.path.basename(x).rsplit("_", -1)[0])
+
+    def __init__(self, dataset_path: str, aug_off: Optional[List[str]], aug_on: Optional[List[str]], crop_size: int, img_size: int):
+        super().__init__(dataset_path, aug_off=None, aug_on=aug_on, crop_size=crop_size, img_size=img_size)

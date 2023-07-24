@@ -8,7 +8,7 @@ from torch.utils.data import Subset, Dataset, DataLoader, random_split
 from src.utils.tools import Logger
 from src.utils.config_parser import Config
 from src.datasets.staple_dataset import CustomDataset
-from src.datasets.defectviews import GlassOpt, GlassOptBckg, BubblePoint, QPlusV1, QPlusV2
+from src.datasets.defectviews import GlassOpt, GlassOptBckg, GlassOptTricky, BubblePoint, QPlusV1, QPlusV2
 from config.consts import SubsetsDict
 from config.consts import General as _GC
 
@@ -39,6 +39,8 @@ class DatasetBuilder:
             return GlassOpt(config.dataset_path, config.augment_offline, config.augment_online, config.crop_size, config.image_size)
         elif config.dataset_type == "opt_bckg":
             return GlassOptBckg(config.dataset_path, config.augment_offline, config.augment_online, config.crop_size, config.image_size)
+        elif config.dataset_type == "opt_tricky":
+            return GlassOptTricky(config.dataset_path, config.augment_offline, config.augment_online, config.crop_size, config.image_size)
         elif config.dataset_type == "qplusv1":
             return QPlusV1(config.dataset_path, config.augment_offline, config.augment_online, config.crop_size, config.image_size)
         elif config.dataset_type == "qplusv2":
