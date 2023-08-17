@@ -1,7 +1,9 @@
 {
     "dataset_path": "/media/lorenzo/M/datasets/dataset_opt/2.3_dataset_opt/views7c/img",
     "dataset_type": "opt_bckg",
-    "dataset_splits": [0.8],
+    "dataset_splits": [
+        0.8
+    ],
     "batch_size": 32,
     "epochs": 100,
     "crop_size": 28,

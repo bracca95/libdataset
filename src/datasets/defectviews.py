@@ -6,9 +6,9 @@ from glob import glob
 from typing import Optional, List
 from torchvision import transforms
 
-from src.imgproc import Processing
-from src.utils.tools import Logger, Tools
-from src.datasets.staple_dataset import CustomDataset
+from .dataset import CustomDataset
+from ..imgproc import Processing
+from ..utils.tools import Logger, Tools
 
 
 class GlassOpt(CustomDataset):
@@ -28,28 +28,20 @@ class GlassOpt(CustomDataset):
     NO_CROP = ["scratch", "break", "mark"]
 
     # https://stackoverflow.com/a/42583719
+    # -1 means split all the occurrences of the split character(s). n means split n words starting from the last
     split_name = staticmethod(lambda x: os.path.basename(x).rsplit("_", -1)[0])
 
-    def __init__(self, dataset_path: str, aug_off: Optional[List[str]], aug_on: Optional[List[str]], crop_size: int, img_size: int):
-        self.dataset_path: str = dataset_path
-        self.dataset_aug_path: str = os.path.join(os.path.dirname(self.dataset_path), self.AUG_DIR)
-        self.filt: List[str] = list(self.label_to_idx.keys())
+    @property
+    def augment_strategy(self):
+        return self._augment_strategy
+    
+    @augment_strategy.setter
+    def augment_strategy(self, val):
+        self._augment_strategy = val
 
-        self.augment_online: Optional[List[str]] = aug_on
-        self.augment_offline: Optional[List[str]] = aug_off
-        if self.augment_offline is not None:
-            self.augment_dataset(50)
-
-        self.image_list: Optional[List[str]] = self.get_image_list(self.filt)
-        self.label_list: Optional[List[int]] = self.get_label_list()
-
-        self.crop_size: int = crop_size
-        self.img_size: Optional[int] = img_size
-        self.in_dim = self.img_size
-        self.out_dim = len(self.label_to_idx)
-
-        self.mean: Optional[float] = None
-        self.std: Optional[float] = None
+    def __init__(self, dataset_path: str, aug_off: Optional[List[str]], aug_on: Optional[List[str]], crop_size: int, img_size: int, split_ratios: List[float]):
+        self.augment_strategy = "store_augmented_images"
+        super().__init__(dataset_path, aug_off=aug_off, aug_on=aug_on, crop_size=crop_size, img_size=img_size, split_ratios=split_ratios)
 
     def get_image_list(self, filt: List[str]) -> List[str]:
         """Read all the filenames in the dataset directory
@@ -94,30 +86,6 @@ class GlassOpt(CustomDataset):
         Logger.instance().debug(f"Number of images per class: { {i: label_list.count(i) for i in set(label_list)} }")
 
         return [self.label_to_idx[defect] for defect in label_list]
-    
-    def augment_dataset(self, iters: int):
-        """Perform offline augmentation
-        
-        Increase the number of available samples with augmentation techniques, if required in config. Offline
-        augmentation can work on a limited set of classes; indeed, it should be used if there are not enough samples
-        for each class.
-
-        iters (int): number of augmentation iteration for the same image
-        """
-        
-        Logger.instance().debug("increasing the number of images...")
-        
-        if os.path.exists(self.dataset_aug_path):
-            if len(os.listdir(self.dataset_aug_path)) > 0:
-                Logger.instance().warning("the dataset has already been augmented")
-                return
-        else:
-            os.makedirs(self.dataset_aug_path)
-        
-        image_list = self.get_image_list(self.augment_offline)
-        Processing.store_augmented_images(image_list, self.dataset_aug_path, iters)
-
-        Logger.instance().debug("dataset augmentatio completed")
         
 
     def load_image(self, path: str) -> torch.Tensor:
@@ -184,8 +152,8 @@ class GlassOptBckg(GlassOpt):
     idx_to_label = Tools.invert_dict(label_to_idx)
     NO_CROP = ["scratch", "break", "mark", "background"]
 
-    def __init__(self, dataset_path: str, aug_off: Optional[List[str]], aug_on: Optional[List[str]], crop_size: int, img_size: int):
-        super().__init__(dataset_path, aug_off=aug_off, aug_on=aug_on, crop_size=crop_size, img_size=img_size)
+    def __init__(self, dataset_path: str, aug_off: Optional[List[str]], aug_on: Optional[List[str]], crop_size: int, img_size: int, split_ratios: List[float]):
+        super().__init__(dataset_path, aug_off=aug_off, aug_on=aug_on, crop_size=crop_size, img_size=img_size, split_ratios = split_ratios)
 
 
 class QPlusV1(GlassOpt):
@@ -208,8 +176,8 @@ class QPlusV1(GlassOpt):
     NO_CROP = ["mark", "glass_id", "dirt", "dirt_halo", "point", "scratch_light", "scratch_heavy", "scratch_multi", "dust", "halo", "coating"]
     split_name = staticmethod(lambda x: os.path.basename(x).rsplit("_did", 1)[0])
 
-    def __init__(self, dataset_path: str, aug_off: Optional[List[str]], aug_on: Optional[List[str]], crop_size: int, img_size: int):
-        super().__init__(dataset_path, aug_off=None, aug_on=None, crop_size=crop_size, img_size=img_size)
+    def __init__(self, dataset_path: str, aug_off: Optional[List[str]], aug_on: Optional[List[str]], crop_size: int, img_size: int, split_ratios: List[float]):
+        super().__init__(dataset_path, aug_off=None, aug_on=None, crop_size=crop_size, img_size=img_size, split_ratios=split_ratios)
 
 
 class QPlusV2(GlassOpt):
@@ -234,8 +202,8 @@ class QPlusV2(GlassOpt):
     NO_CROP = list(label_to_idx.keys())
     split_name = staticmethod(lambda x: os.path.basename(x).rsplit("_did", 1)[0])
 
-    def __init__(self, dataset_path: str, aug_off: Optional[List[str]], aug_on: Optional[List[str]], crop_size: int, img_size: int):
-        super().__init__(dataset_path, aug_off=None, aug_on=None, crop_size=crop_size, img_size=img_size)
+    def __init__(self, dataset_path: str, aug_off: Optional[List[str]], aug_on: Optional[List[str]], crop_size: int, img_size: int, split_ratios: List[float]):
+        super().__init__(dataset_path, aug_off=None, aug_on=None, crop_size=crop_size, img_size=img_size, split_ratios=split_ratios)
 
 
 class BubblePoint(GlassOpt):
@@ -247,8 +215,8 @@ class BubblePoint(GlassOpt):
 
     idx_to_label = Tools.invert_dict(label_to_idx)
 
-    def __init__(self, dataset_path: str, aug_off: Optional[List[str]], aug_on: Optional[List[str]], crop_size: int, img_size: int):
-        super().__init__(dataset_path, aug_off=None, aug_on=aug_on, crop_size=crop_size, img_size=img_size)
+    def __init__(self, dataset_path: str, aug_off: Optional[List[str]], aug_on: Optional[List[str]], crop_size: int, img_size: int, split_ratios: List[float]):
+        super().__init__(dataset_path, aug_off=None, aug_on=aug_on, crop_size=crop_size, img_size=img_size, split_ratios=split_ratios)
 
 
 class GlassOptTricky(GlassOpt):
@@ -263,8 +231,8 @@ class GlassOptTricky(GlassOpt):
 
     idx_to_label = Tools.invert_dict(label_to_idx)
 
-    NO_CROP = ["background", "scratch", "dirt"]
+    NO_CROP = list(label_to_idx.keys())     # ["background", "scratch", "dirt"]
     split_name = staticmethod(lambda x: os.path.basename(x).rsplit("_", -1)[0])
 
-    def __init__(self, dataset_path: str, aug_off: Optional[List[str]], aug_on: Optional[List[str]], crop_size: int, img_size: int):
-        super().__init__(dataset_path, aug_off=None, aug_on=aug_on, crop_size=crop_size, img_size=img_size)
+    def __init__(self, dataset_path: str, aug_off: Optional[List[str]], aug_on: Optional[List[str]], crop_size: int, img_size: int, split_ratios: List[float]):
+        super().__init__(dataset_path, aug_off=None, aug_on=aug_on, crop_size=crop_size, img_size=img_size, split_ratios=split_ratios)

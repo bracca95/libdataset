@@ -17,7 +17,7 @@ class General:
     EPS = 0.001
 
 
-class ConfigConst:
+class DatasetConst:
     CONFIG_DATASET_PATH = "dataset_path"
     CONFIG_DATASET_TYPE = "dataset_type"
     CONFIG_DATASET_SPLITS = "dataset_splits"
@@ -29,14 +29,3 @@ class ConfigConst:
     CONFIG_IMAGE_SIZE = "image_size"
     CONFIG_DATASET_MEAN = "dataset_mean"
     CONFIG_DATASET_STD = "dataset_std"
-    CONFIG_FSL = "fsl"
-
-
-class FSLConsts:
-    FSL_EPISODES = "episodes"
-    FSL_TRAIN_N_WAY = "train_n_way"
-    FSL_TRAIN_K_SHOT_S = "train_k_shot_s"
-    FSL_TRAIN_K_SHOT_Q = "train_k_shot_q"
-    FSL_TEST_N_WAY = "test_n_way"
-    FSL_TEST_K_SHOT_S = "test_k_shot_s"
-    FSL_TEST_K_SHOT_Q = "test_k_shot_q"

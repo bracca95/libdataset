@@ -4,12 +4,13 @@ import torch
 import random
 import numpy as np
 
-from src.models.model_utils import Model
-from src.train_test.routine import TrainTestExample
-from src.datasets.dataset_utils import DatasetBuilder
-from src.utils.config_parser import Config
-from src.utils.tools import Logger
-from config.consts import General as _CG
+current_dir = os.path.dirname(os.path.abspath(__file__))
+project_root = os.path.abspath(os.path.dirname(os.path.dirname(current_dir)))
+sys.path.insert(0, project_root)
+
+from glass_defect_dataset.src.datasets.dataset_utils import DatasetBuilder
+from glass_defect_dataset.src.utils.config_parser import Config
+from glass_defect_dataset.src.utils.tools import Logger
 
 SEED = 1234         # with the first protonet implementation I used 7
 
@@ -36,16 +37,13 @@ if __name__=="__main__":
     # compute mean and variance of the dataset if not done yet
     if config.dataset_mean is None and config.dataset_std is None:
         Logger.instance().warning("No mean and std set: computing and storing values.")
-        DatasetBuilder.compute_mean_std(dataset, config)
+        dataset.compute_mean_std(dataset, config)
         sys.exit(0)
 
-    # instantiate model
-    model = Model().to(_CG.DEVICE)
+    # # instantiate model
+    # model = Model().to(_CG.DEVICE)
     
-    # split dataset
-    subsets_dict = DatasetBuilder.split_dataset(dataset, config.dataset_splits)
-    
-    # train/test
-    routine = TrainTestExample(model, dataset, subsets_dict)
-    routine.train(config)
-    routine.test(config, model_path)
+    # # train/test
+    # routine = TrainTestExample(model, dataset, subsets_dict)
+    # routine.train(config)
+    # routine.test(config, model_path)

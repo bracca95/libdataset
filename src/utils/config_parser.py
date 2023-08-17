@@ -1,5 +1,7 @@
 # inspired by quicktype.io
 
+from __future__ import annotations # ClassName for ClassName in static methods would require 'ClassMethod'
+
 import os
 import sys
 import json
@@ -8,11 +10,10 @@ from functools import reduce
 from dataclasses import dataclass, field
 from typing import Optional, Union, List, Any, Callable, Iterable, Type, cast
 
-from src.utils.tools import Tools, Logger
-from config.consts import T
-from config.consts import General as _CG
-from config.consts import ConfigConst as _CC
-from config.consts import FSLConsts as _CFSL
+from .tools import Tools, Logger
+from ...config.consts import T
+from ...config.consts import General as _CG
+from ...config.consts import DatasetConst as _CD
 
 def from_bool(x: Any) -> bool:
     Tools.check_instance(x, bool)
@@ -53,53 +54,6 @@ def to_class(c: Type[T], x: Any) -> dict:
 
 
 @dataclass
-class Fsl:
-    episodes: int
-    train_n_way: int
-    train_k_shot_s: int
-    train_k_shot_q: int
-    test_n_way: int
-    test_k_shot_s: int
-    test_k_shot_q: int
-
-    @classmethod
-    def deserialize(cls, obj: Any) -> 'Fsl':
-        
-        try:
-            Tools.check_instance(obj, dict)
-            episodes = from_int(obj.get(_CFSL.FSL_EPISODES))
-            train_n_way = from_int(obj.get(_CFSL.FSL_TRAIN_N_WAY))
-            train_k_shot_s = from_int(obj.get(_CFSL.FSL_TRAIN_K_SHOT_S))
-            train_k_shot_q = from_int(obj.get(_CFSL.FSL_TRAIN_K_SHOT_Q))
-            test_n_way = from_int(obj.get(_CFSL.FSL_TEST_N_WAY))
-            test_k_shot_s = from_int(obj.get(_CFSL.FSL_TEST_K_SHOT_S))
-            test_k_shot_q = from_int(obj.get(_CFSL.FSL_TEST_K_SHOT_Q))
-            
-        except TypeError as te:
-            Logger.instance().error(te.args)
-            sys.exit(-1)
-
-        Logger.instance().debug(f"episodes: {episodes}, train_n_way: {train_n_way}, train_k_shot_s: {train_k_shot_s}, " +
-                                f"train_k_shot_q: {train_k_shot_q}, test_n_way: {test_n_way}, " +
-                                f"test_k_shot_s: {test_k_shot_s}, test_k_shot_q: {test_k_shot_q}")
-        return Fsl(episodes, train_n_way, train_k_shot_s, train_k_shot_q, test_n_way, test_k_shot_s, test_k_shot_q)
-
-    def serialize(self) -> dict:
-        result: dict = {}
-        
-        result[_CFSL.FSL_EPISODES] = from_int(self.episodes)
-        result[_CFSL.FSL_TRAIN_N_WAY] = from_int(self.train_n_way)
-        result[_CFSL.FSL_TRAIN_K_SHOT_S] = from_int(self.train_k_shot_s)
-        result[_CFSL.FSL_TRAIN_K_SHOT_Q] = from_int(self.train_k_shot_q)
-        result[_CFSL.FSL_TEST_N_WAY] = from_int(self.test_n_way)
-        result[_CFSL.FSL_TEST_K_SHOT_S] = from_int(self.test_k_shot_s)
-        result[_CFSL.FSL_TEST_K_SHOT_Q] = from_int(self.test_k_shot_q)
-
-        Logger.instance().info(f"ObjectList serialized: {result}")
-        return result
-
-
-@dataclass
 class Config:
     dataset_path: str = _CG.DEFAULT_STR
     dataset_type: str = _CG.DEFAULT_STR
@@ -112,14 +66,13 @@ class Config:
     augment_offline: Optional[List[str]] = None
     dataset_mean: Optional[List[float]] = None
     dataset_std: Optional[List[float]] = None
-    fsl: Optional[Fsl] = None
 
     @classmethod
-    def deserialize(cls, str_path: str) -> 'Config':
+    def deserialize(cls, str_path: str) -> Config:
         obj = Tools.read_json(str_path)
         
         try:
-            dataset_path = Tools.validate_path(obj.get(_CC.CONFIG_DATASET_PATH))
+            dataset_path = Tools.validate_path(obj.get(_CD.CONFIG_DATASET_PATH))
         except (FileNotFoundError, ValueError) as fnf:
             Logger.instance().error(fnf.args)
             dataset_path = input("insert dataset path: ")
@@ -127,17 +80,16 @@ class Config:
                 dataset_path = input("insert dataset path: ")
                 
         try:
-            dataset_type = from_str(obj.get(_CC.CONFIG_DATASET_TYPE))
-            dataset_splits = from_list(lambda x: from_float(x), obj.get(_CC.CONFIG_DATASET_SPLITS))
-            batch_size = from_int(obj.get(_CC.CONFIG_BATCH_SIZE))
-            epochs = from_int(obj.get(_CC.CONFIG_EPOCHS))
-            crop_size = from_int(obj.get(_CC.CONFIG_CROP_SIZE))
-            image_size = from_int(obj.get(_CC.CONFIG_IMAGE_SIZE))
-            augment_online = from_union([lambda x: from_list(from_str, x), from_none], obj.get(_CC.CONFIG_AUGMENT_ONLINE))
-            augment_offline = from_union([lambda x: from_list(from_str, x), from_none], obj.get(_CC.CONFIG_AUGMENT_OFFLINE))
-            dataset_mean = from_union([lambda x: from_list(from_float, x), from_none], obj.get(_CC.CONFIG_DATASET_MEAN))
-            dataset_std = from_union([lambda x: from_list(from_float, x), from_none], obj.get(_CC.CONFIG_DATASET_STD))
-            fsl = from_union([Fsl.deserialize, from_none], obj.get(_CC.CONFIG_FSL))
+            dataset_type = from_str(obj.get(_CD.CONFIG_DATASET_TYPE))
+            dataset_splits = from_list(lambda x: from_float(x), obj.get(_CD.CONFIG_DATASET_SPLITS))
+            batch_size = from_int(obj.get(_CD.CONFIG_BATCH_SIZE))
+            epochs = from_int(obj.get(_CD.CONFIG_EPOCHS))
+            crop_size = from_int(obj.get(_CD.CONFIG_CROP_SIZE))
+            image_size = from_int(obj.get(_CD.CONFIG_IMAGE_SIZE))
+            augment_online = from_union([lambda x: from_list(from_str, x), from_none], obj.get(_CD.CONFIG_AUGMENT_ONLINE))
+            augment_offline = from_union([lambda x: from_list(from_str, x), from_none], obj.get(_CD.CONFIG_AUGMENT_OFFLINE))
+            dataset_mean = from_union([lambda x: from_list(from_float, x), from_none], obj.get(_CD.CONFIG_DATASET_MEAN))
+            dataset_std = from_union([lambda x: from_list(from_float, x), from_none], obj.get(_CD.CONFIG_DATASET_STD))
         except TypeError as te:
             Logger.instance().critical(te.args)
             sys.exit(-1)
@@ -162,10 +114,10 @@ class Config:
         Logger.instance().info(f"Config deserialized: " +
             f"dataset_path: {dataset_path}, dataset_type: {dataset_type}, dataset_splits: {dataset_splits}, " +
             f"augment_online: {augment_online}, augment_offline: {augment_offline}, batch_size {batch_size}, epochs: {epochs}, " +
-            f"dataset mean: {dataset_mean}, dataset_std: {dataset_std}, crop_size: {crop_size}, image_size: {image_size}, " +
-            f"fsl: {fsl}")
+            f"dataset mean: {dataset_mean}, dataset_std: {dataset_std}, crop_size: {crop_size}, image_size: {image_size}"
+            )
         
-        return Config(dataset_path, dataset_type, dataset_splits, batch_size, epochs, crop_size, image_size, augment_online, augment_offline, dataset_mean, dataset_std, fsl)
+        return Config(dataset_path, dataset_type, dataset_splits, batch_size, epochs, crop_size, image_size, augment_online, augment_offline, dataset_mean, dataset_std)
 
     def serialize(self, directory: str, filename: str):
         result: dict = {}
@@ -178,18 +130,17 @@ class Config:
             sys.exit(-1)
         
         # if you do not want to write null values, add a field to result if and only if self.field is not None
-        result[_CC.CONFIG_DATASET_PATH] = from_str(self.dataset_path)
-        result[_CC.CONFIG_DATASET_TYPE] = from_str(self.dataset_type)
-        result[_CC.CONFIG_DATASET_SPLITS] = from_list(lambda x: from_float(x), self.dataset_splits)
-        result[_CC.CONFIG_BATCH_SIZE] = from_int(self.batch_size)
-        result[_CC.CONFIG_EPOCHS] = from_int(self.epochs)
-        result[_CC.CONFIG_CROP_SIZE] = from_int(self.crop_size)
-        result[_CC.CONFIG_IMAGE_SIZE] = from_int(self.image_size)
-        result[_CC.CONFIG_AUGMENT_ONLINE] = from_union([lambda x: from_list(from_str, x), from_none], self.augment_online)
-        result[_CC.CONFIG_AUGMENT_OFFLINE] = from_union([lambda x: from_list(from_str, x), from_none], self.augment_offline)
-        result[_CC.CONFIG_DATASET_MEAN] = from_union([lambda x: from_list(from_float, x), from_none], self.dataset_mean)
-        result[_CC.CONFIG_DATASET_STD] = from_union([lambda x: from_list(from_float, x), from_none], self.dataset_std)
-        result[_CC.CONFIG_FSL] = from_union([lambda x: to_class(Fsl, x), from_none], self.fsl)
+        result[_CD.CONFIG_DATASET_PATH] = from_str(self.dataset_path)
+        result[_CD.CONFIG_DATASET_TYPE] = from_str(self.dataset_type)
+        result[_CD.CONFIG_DATASET_SPLITS] = from_list(lambda x: from_float(x), self.dataset_splits)
+        result[_CD.CONFIG_BATCH_SIZE] = from_int(self.batch_size)
+        result[_CD.CONFIG_EPOCHS] = from_int(self.epochs)
+        result[_CD.CONFIG_CROP_SIZE] = from_int(self.crop_size)
+        result[_CD.CONFIG_IMAGE_SIZE] = from_int(self.image_size)
+        result[_CD.CONFIG_AUGMENT_ONLINE] = from_union([lambda x: from_list(from_str, x), from_none], self.augment_online)
+        result[_CD.CONFIG_AUGMENT_OFFLINE] = from_union([lambda x: from_list(from_str, x), from_none], self.augment_offline)
+        result[_CD.CONFIG_DATASET_MEAN] = from_union([lambda x: from_list(from_float, x), from_none], self.dataset_mean)
+        result[_CD.CONFIG_DATASET_STD] = from_union([lambda x: from_list(from_float, x), from_none], self.dataset_std)
 
         with open(os.path.join(dire, filename), "w") as f:
             json_dict = json.dumps(result, indent=4)

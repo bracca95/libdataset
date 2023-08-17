@@ -6,7 +6,7 @@ import logging
 
 from typing import Type, Any, Union, Optional, List
 
-from config.consts import T
+from ...config.consts import T
 
 
 class Singleton:

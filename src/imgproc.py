@@ -7,7 +7,7 @@ from tqdm import tqdm
 from typing import Optional, List
 from torchvision import transforms
 
-from src.utils.tools import Logger
+from .utils.tools import Logger
 
 
 class Processing:
