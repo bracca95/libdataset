@@ -40,7 +40,7 @@ class GlassOpt(CustomDataset):
         self._augment_strategy = val
 
     def __init__(self, dataset_path: str, aug_off: Optional[List[str]], aug_on: Optional[List[str]], crop_size: int, img_size: int, split_ratios: List[float]):
-        self.augment_strategy = "store_augmented_images"
+        self.augment_strategy = Processing.offline_transforms_v2
         super().__init__(dataset_path, aug_off=aug_off, aug_on=aug_on, crop_size=crop_size, img_size=img_size, split_ratios=split_ratios)
 
     def get_image_list(self, filt: List[str]) -> List[str]:

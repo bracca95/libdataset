@@ -4,7 +4,7 @@ import torch
 from PIL import Image
 from PIL.Image import Image as PilImgType
 from tqdm import tqdm
-from typing import Optional, List
+from typing import Optional, List, Callable
 from torchvision import transforms
 
 from .utils.tools import Logger
@@ -77,7 +77,7 @@ class Processing:
         return img
     
     @staticmethod
-    def store_augmented_images(img_list: List[str], new_dir: str, iters: int):
+    def store_augmented_images(img_list: List[str], new_dir: str, iters: int, aug_fun: Callable[[PilImgType], PilImgType]):
         """Save the augmented images in the specified folder
 
         Args:
@@ -93,6 +93,6 @@ class Processing:
             # remove the following line when random rotation is used instead
             img_pil = Processing.rotate_image(img_pil, prob=0.5)
             for it in range(iters):
-                img_aug = Processing.offline_transforms_v2(img_pil)
+                img_aug = aug_fun(img_pil)
                 new_filename = f"{img_filename}_{it}.{img_ext}"
                 img_aug.save(os.path.join(new_dir, new_filename))

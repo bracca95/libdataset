@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 import torch
 
+from PIL.Image import Image as PilImgType
 from abc import ABC, abstractmethod, abstractproperty
 from typing import Optional, List, Callable
 from dataclasses import dataclass
@@ -66,7 +67,7 @@ class CustomDataset(ABC, Dataset):
         self.augment_online: Optional[List[str]] = aug_on
         self.augment_offline: Optional[List[str]] = aug_off
         if self.augment_offline is not None:
-            self.augment_dataset(50, eval(f"Processing.{self.augment_strategy}"))
+            self.augment_dataset(50, self.augment_strategy)
 
         self.image_list: Optional[List[str]] = self.get_image_list(self.filt)
         self.label_list: Optional[List[int]] = self.get_label_list()
@@ -159,7 +160,7 @@ class CustomDataset(ABC, Dataset):
         
         return SubsetInfo(subset_str_id, self.subsets_dict[subset_str_id], info_dict)
     
-    def augment_dataset(self, iters: int, augment_func: Optional[Callable[[List[str], str, int], None]]):
+    def augment_dataset(self, iters: int, augment_func: Optional[Callable[[PilImgType], PilImgType]]):
         """Perform offline augmentation
         
         Increase the number of available samples with augmentation techniques, if required in config. Offline
@@ -168,7 +169,7 @@ class CustomDataset(ABC, Dataset):
 
         Args:
             iters (int): number of augmentation iteration for the same image.
-            augment_fuct (Callable): function used to augment. (image list, output directory, number of iterations)
+            augment_fuct (Callable): function used to augment.
         """
 
         if augment_func is None:
@@ -185,7 +186,7 @@ class CustomDataset(ABC, Dataset):
             os.makedirs(self.dataset_aug_path)
         
         image_list = self.get_image_list(self.augment_offline)
-        augment_func(image_list, self.dataset_aug_path, iters)
+        Processing.store_augmented_images(image_list, self.dataset_aug_path, iters, augment_func)
 
         Logger.instance().debug("dataset augmentation completed")
 
