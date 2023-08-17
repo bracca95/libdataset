@@ -54,12 +54,10 @@ def to_class(c: Type[T], x: Any) -> dict:
 
 
 @dataclass
-class Config:
+class DatasetConfig:
     dataset_path: str = _CG.DEFAULT_STR
     dataset_type: str = _CG.DEFAULT_STR
     dataset_splits: List[float] = field(default_factory=list)
-    batch_size: int = _CG.DEFAULT_INT
-    epochs: int = _CG.DEFAULT_INT
     crop_size: int = _CG.DEFAULT_INT
     image_size: int = _CG.DEFAULT_INT
     augment_online: Optional[List[str]] = None
@@ -68,7 +66,7 @@ class Config:
     dataset_std: Optional[List[float]] = None
 
     @classmethod
-    def deserialize(cls, str_path: str) -> Config:
+    def deserialize(cls, str_path: str) -> DatasetConfig:
         obj = Tools.read_json(str_path)
         
         try:
@@ -82,8 +80,6 @@ class Config:
         try:
             dataset_type = from_str(obj.get(_CD.CONFIG_DATASET_TYPE))
             dataset_splits = from_list(lambda x: from_float(x), obj.get(_CD.CONFIG_DATASET_SPLITS))
-            batch_size = from_int(obj.get(_CD.CONFIG_BATCH_SIZE))
-            epochs = from_int(obj.get(_CD.CONFIG_EPOCHS))
             crop_size = from_int(obj.get(_CD.CONFIG_CROP_SIZE))
             image_size = from_int(obj.get(_CD.CONFIG_IMAGE_SIZE))
             augment_online = from_union([lambda x: from_list(from_str, x), from_none], obj.get(_CD.CONFIG_AUGMENT_ONLINE))
@@ -111,13 +107,13 @@ class Config:
             else:
                 raise ValueError("the sum for dataset_splits must be 1")
         
-        Logger.instance().info(f"Config deserialized: " +
+        Logger.instance().info(f"DatasetConfig deserialized: " +
             f"dataset_path: {dataset_path}, dataset_type: {dataset_type}, dataset_splits: {dataset_splits}, " +
-            f"augment_online: {augment_online}, augment_offline: {augment_offline}, batch_size {batch_size}, epochs: {epochs}, " +
-            f"dataset mean: {dataset_mean}, dataset_std: {dataset_std}, crop_size: {crop_size}, image_size: {image_size}"
+            f"augment_online: {augment_online}, augment_offline: {augment_offline}, dataset mean: {dataset_mean}, " +
+            f"dataset_std: {dataset_std}, crop_size: {crop_size}, image_size: {image_size}"
             )
         
-        return Config(dataset_path, dataset_type, dataset_splits, batch_size, epochs, crop_size, image_size, augment_online, augment_offline, dataset_mean, dataset_std)
+        return DatasetConfig(dataset_path, dataset_type, dataset_splits, crop_size, image_size, augment_online, augment_offline, dataset_mean, dataset_std)
 
     def serialize(self, directory: str, filename: str):
         result: dict = {}
@@ -133,8 +129,6 @@ class Config:
         result[_CD.CONFIG_DATASET_PATH] = from_str(self.dataset_path)
         result[_CD.CONFIG_DATASET_TYPE] = from_str(self.dataset_type)
         result[_CD.CONFIG_DATASET_SPLITS] = from_list(lambda x: from_float(x), self.dataset_splits)
-        result[_CD.CONFIG_BATCH_SIZE] = from_int(self.batch_size)
-        result[_CD.CONFIG_EPOCHS] = from_int(self.epochs)
         result[_CD.CONFIG_CROP_SIZE] = from_int(self.crop_size)
         result[_CD.CONFIG_IMAGE_SIZE] = from_int(self.image_size)
         result[_CD.CONFIG_AUGMENT_ONLINE] = from_union([lambda x: from_list(from_str, x), from_none], self.augment_online)
@@ -146,8 +140,8 @@ class Config:
             json_dict = json.dumps(result, indent=4)
             f.write(json_dict)
 
-        Logger.instance().info("Config serialized")
+        Logger.instance().info("DatasetConfig serialized")
 
 
-def config_to_json(x: Config) -> Any:
-    return to_class(Config, x)
+def config_to_json(x: DatasetConfig) -> Any:
+    return to_class(DatasetConfig, x)

@@ -4,8 +4,6 @@
     "dataset_splits": [
         0.8
     ],
-    "batch_size": 32,
-    "epochs": 100,
     "crop_size": 28,
     "image_size": 105,
     "augment_online": null,

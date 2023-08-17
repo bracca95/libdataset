@@ -12,7 +12,7 @@ from torch.utils.data import Subset
 
 from ..imgproc import Processing
 from ..utils.tools import Tools, Logger
-from ..utils.config_parser import Config
+from ..utils.config_parser import DatasetConfig
 from ...config.consts import SubsetsDict
 from ...config.consts import General as _GC
 
@@ -191,9 +191,9 @@ class CustomDataset(ABC, Dataset):
         Logger.instance().debug("dataset augmentation completed")
 
     @staticmethod
-    def compute_mean_std(dataset: CustomDataset, config: Config):
+    def compute_mean_std(dataset: CustomDataset, config: DatasetConfig):
         # https://discuss.pytorch.org/t/computing-the-mean-and-std-of-dataset/34949/31
-        dataloader = DataLoader(dataset, batch_size=config.batch_size, shuffle=True)
+        dataloader = DataLoader(dataset, batch_size=32, shuffle=True)
 
         mean = 0.0
         for batch in dataloader:

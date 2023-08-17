@@ -1,13 +1,13 @@
 from .dataset import CustomDataset
 from .defectviews import GlassOpt, GlassOptBckg, GlassOptTricky, BubblePoint, QPlusV1, QPlusV2
-from ..utils.config_parser import Config
+from ..utils.config_parser import DatasetConfig
 from ..utils.tools import Logger
 
 
 class DatasetBuilder:
 
     @staticmethod
-    def load_dataset(config: Config) -> CustomDataset:
+    def load_dataset(config: DatasetConfig) -> CustomDataset:
         if config.dataset_type == "opt6":
             Logger.instance().info("Loading dataset GlassOpt (type CustomDataset)")
             return GlassOpt(config.dataset_path, config.augment_offline, config.augment_online, config.crop_size, config.image_size, config.dataset_splits)

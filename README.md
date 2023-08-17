@@ -3,15 +3,13 @@
 ## Dataset
 Your own dataset can be built by inheriting from the abstract class `CustomDataset` in `src.dataset.staple_dataset`
 
-## Config
+## Dataset Config
 Edit the `config/config.json` file to start
 
 ```
 "dataset_path": string,
 "dataset_type": {`opt6`, `opt_bckg`, `opt_tricky`, `binary`, `qplusv1`, `qplusv2`},
 "dataset_splits": List[float] (1 for train/test (e.g. [0.8]), 3 for train/val/test),
-"batch_size": int,
-"epochs": int,
 "crop_size": int (suggested 28),
 "image_size": Optional[int] (after crop, reshape can be applied),
 "augment_online": Optional[List[str]] (classes for online augmentation),

@@ -9,7 +9,7 @@ project_root = os.path.abspath(os.path.dirname(os.path.dirname(current_dir)))
 sys.path.insert(0, project_root)
 
 from glass_defect_dataset.src.datasets.dataset_utils import DatasetBuilder
-from glass_defect_dataset.src.utils.config_parser import Config
+from glass_defect_dataset.src.utils.config_parser import DatasetConfig
 from glass_defect_dataset.src.utils.tools import Logger
 
 SEED = 1234         # with the first protonet implementation I used 7
@@ -23,7 +23,7 @@ torch.backends.cudnn.deterministic = True
 
 if __name__=="__main__":
     try:
-        config = Config.deserialize("config/config.json")
+        config = DatasetConfig.deserialize("config/config.json")
     except Exception as e:
         Logger.instance().critical(e.args)
         sys.exit(-1)
