@@ -1,7 +1,7 @@
 # Baseline Project for Defect Views dataset
 
 ## Dataset
-Your own dataset can be built by inheriting from the abstract class `CustomDataset` in `src.dataset.staple_dataset`
+Your own dataset can be built by inheriting from the abstract class `CustomDataset` in `src.dataset.dataset`
 
 ## Dataset Config
 Edit the `config/config.json` file to start
@@ -10,8 +10,8 @@ Edit the `config/config.json` file to start
 "dataset_path": string,
 "dataset_type": {`opt6`, `opt_bckg`, `opt_tricky`, `binary`, `qplusv1`, `qplusv2`},
 "dataset_splits": List[float] (1 for train/test (e.g. [0.8]), 3 for train/val/test),
-"crop_size": int (suggested 28),
-"image_size": Optional[int] (after crop, reshape can be applied),
+"crop_size": int,
+"image_size": int (after crop, reshape can be applied),
 "augment_online": Optional[List[str]] (classes for online augmentation),
 "augment_offline": Optional[List[str]] (classes for offline augmentation),
 "dataset_mean": Optional[List[float]] (Grayscale/RGB),
@@ -20,11 +20,3 @@ Edit the `config/config.json` file to start
 
 If `dataset_mean` and `dataset_std` are set to null, the program will compute them and then it will quit the execution.
 Run the program again to train your model.
-
-## Model
-Models are supposed to be put in `src/models`. You can use ad additional subfolder; suppose that you need different
-implementations of few-show learning frameworks, such as ProtoNet and Siamese Network, you can create a subfolder `FSL`
-in the models directory, then put your `.py` file there.
-
-## Train/Test routines
-Train and test routines have to be inherited from the `TrainTest` abstract class in `src/train_test_routine.py`.
