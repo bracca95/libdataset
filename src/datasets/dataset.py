@@ -128,7 +128,7 @@ class CustomDataset(ABC, Dataset):
         
         return { train_str: subsets[0], val_str: val_set, test_str: subsets[-1] }   # type: ignore
 
-    def get_subset_info(self, subset_str_id: str) -> Optional[SubsetInfo]:
+    def get_subset_info(self, subset_str_id: str) -> SubsetInfo:
         """Wrap subset into SubsetInfo structure (holds more information)
 
         Args:
@@ -143,9 +143,6 @@ class CustomDataset(ABC, Dataset):
 
         if subset_str_id not in _GC.DEFAULT_SUBSETS:
             raise ValueError(f"TrainTest::get_subset_info: only accept 'train', 'val', 'test'")
-        
-        if self.subsets_dict is None:
-            return None
         
         if self.subsets_dict[subset_str_id] is None:
             info_dict = None
