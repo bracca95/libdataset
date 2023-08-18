@@ -3,12 +3,13 @@ import torch
 
 from PIL import Image
 from glob import glob
-from typing import Optional, List
+from typing import List
 from torchvision import transforms
 
 from .dataset import CustomDataset
 from ..imgproc import Processing
 from ..utils.tools import Logger, Tools
+from ..utils.config_parser import DatasetConfig
 
 
 class GlassOpt(CustomDataset):
@@ -39,9 +40,9 @@ class GlassOpt(CustomDataset):
     def augment_strategy(self, val):
         self._augment_strategy = val
 
-    def __init__(self, dataset_path: str, aug_off: Optional[List[str]], aug_on: Optional[List[str]], crop_size: int, img_size: int, split_ratios: List[float]):
+    def __init__(self, dataset_config: DatasetConfig):
         self.augment_strategy = Processing.offline_transforms_v2
-        super().__init__(dataset_path, aug_off=aug_off, aug_on=aug_on, crop_size=crop_size, img_size=img_size, split_ratios=split_ratios)
+        super().__init__(dataset_config)
 
     def get_image_list(self, filt: List[str]) -> List[str]:
         """Read all the filenames in the dataset directory
@@ -57,8 +58,8 @@ class GlassOpt(CustomDataset):
             List[str] containing the full path to the images
         """
         
-        extra_image_list = glob(os.path.join(self.dataset_aug_path, "*.png")) if self.augment_offline else list()
-        image_list = glob(os.path.join(self.dataset_path, "*.png"))
+        extra_image_list = glob(os.path.join(self.dataset_aug_path, "*.png")) if self.dataset_config.augment_offline else list()
+        image_list = glob(os.path.join(self.dataset_config.dataset_path, "*.png"))
         image_list = image_list + extra_image_list
         
         image_list = list(filter(lambda x: Tools.check_string(self.split_name(x), filt, True, True), image_list))
@@ -113,10 +114,10 @@ class GlassOpt(CustomDataset):
         # scratches, breaks and marks are likely not to be square-shaped, so cropping will lose information
         # CHECK: I could crop only bubbles, since they are the only ones that have to preserve proportions strictly
         if self.dataset_aug_path not in path and not Tools.check_string(os.path.basename(path), self.NO_CROP, False, False):
-            img_pil = Processing.crop_no_padding(img_pil, self.crop_size, path)
+            img_pil = Processing.crop_no_padding(img_pil, self.dataset_config.crop_size, path)
         
         # resize
-        img_pil = transforms.Resize((self.img_size, self.img_size))(img_pil)
+        img_pil = transforms.Resize((self.dataset_config.image_size, self.dataset_config.image_size))(img_pil)
 
         # rescale [0-255](int) to [0-1](float)
         img = transforms.ToTensor()(img_pil)
@@ -152,8 +153,8 @@ class GlassOptBckg(GlassOpt):
     idx_to_label = Tools.invert_dict(label_to_idx)
     NO_CROP = ["scratch", "break", "mark", "background"]
 
-    def __init__(self, dataset_path: str, aug_off: Optional[List[str]], aug_on: Optional[List[str]], crop_size: int, img_size: int, split_ratios: List[float]):
-        super().__init__(dataset_path, aug_off=aug_off, aug_on=aug_on, crop_size=crop_size, img_size=img_size, split_ratios = split_ratios)
+    def __init__(self, dataset_config: DatasetConfig):
+        super().__init__(dataset_config)
 
 
 class QPlusV1(GlassOpt):
@@ -176,8 +177,8 @@ class QPlusV1(GlassOpt):
     NO_CROP = ["mark", "glass_id", "dirt", "dirt_halo", "point", "scratch_light", "scratch_heavy", "scratch_multi", "dust", "halo", "coating"]
     split_name = staticmethod(lambda x: os.path.basename(x).rsplit("_did", 1)[0])
 
-    def __init__(self, dataset_path: str, aug_off: Optional[List[str]], aug_on: Optional[List[str]], crop_size: int, img_size: int, split_ratios: List[float]):
-        super().__init__(dataset_path, aug_off=None, aug_on=None, crop_size=crop_size, img_size=img_size, split_ratios=split_ratios)
+    def __init__(self, dataset_config: DatasetConfig):
+        super().__init__(dataset_config)
 
 
 class QPlusV2(GlassOpt):
@@ -202,8 +203,8 @@ class QPlusV2(GlassOpt):
     NO_CROP = list(label_to_idx.keys())
     split_name = staticmethod(lambda x: os.path.basename(x).rsplit("_did", 1)[0])
 
-    def __init__(self, dataset_path: str, aug_off: Optional[List[str]], aug_on: Optional[List[str]], crop_size: int, img_size: int, split_ratios: List[float]):
-        super().__init__(dataset_path, aug_off=None, aug_on=None, crop_size=crop_size, img_size=img_size, split_ratios=split_ratios)
+    def __init__(self, dataset_config: DatasetConfig):
+        super().__init__(dataset_config)
 
 
 class BubblePoint(GlassOpt):
@@ -215,8 +216,8 @@ class BubblePoint(GlassOpt):
 
     idx_to_label = Tools.invert_dict(label_to_idx)
 
-    def __init__(self, dataset_path: str, aug_off: Optional[List[str]], aug_on: Optional[List[str]], crop_size: int, img_size: int, split_ratios: List[float]):
-        super().__init__(dataset_path, aug_off=None, aug_on=aug_on, crop_size=crop_size, img_size=img_size, split_ratios=split_ratios)
+    def __init__(self, dataset_config: DatasetConfig):
+        super().__init__(dataset_config)
 
 
 class GlassOptTricky(GlassOpt):
@@ -234,5 +235,5 @@ class GlassOptTricky(GlassOpt):
     NO_CROP = list(label_to_idx.keys())     # ["background", "scratch", "dirt"]
     split_name = staticmethod(lambda x: os.path.basename(x).rsplit("_", -1)[0])
 
-    def __init__(self, dataset_path: str, aug_off: Optional[List[str]], aug_on: Optional[List[str]], crop_size: int, img_size: int, split_ratios: List[float]):
-        super().__init__(dataset_path, aug_off=None, aug_on=aug_on, crop_size=crop_size, img_size=img_size, split_ratios=split_ratios)
+    def __init__(self, dataset_config: DatasetConfig):
+        super().__init__(dataset_config)

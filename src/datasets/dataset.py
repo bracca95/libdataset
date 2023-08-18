@@ -12,6 +12,7 @@ from torch.utils.data import Subset
 
 from ..imgproc import Processing
 from ..utils.tools import Tools, Logger
+from ..utils.config_parser import DatasetConfig
 from ...config.consts import SubsetsDict
 from ...config.consts import General as _GC
 
@@ -57,29 +58,26 @@ class CustomDataset(ABC, Dataset):
     def get_label_list(self) -> List[int]:
         ...
 
-    def __init__(self, dataset_path: str, aug_off: Optional[List[str]], aug_on: Optional[List[str]], crop_size: int, img_size: int, split_ratios: List[float]):
+    def __init__(self, dataset_config: DatasetConfig):
         Dataset().__init__()
-        self.dataset_path = dataset_path
-        self.dataset_aug_path: str = os.path.join(os.path.dirname(self.dataset_path), self.AUG_DIR)
+        self.dataset_config = dataset_config
+        
+        self.dataset_aug_path: str = os.path.join(os.path.dirname(self.dataset_config.dataset_path), self.AUG_DIR)
         self.filt: List[str] = list(self.label_to_idx.keys())
 
-        self.augment_online: Optional[List[str]] = aug_on
-        self.augment_offline: Optional[List[str]] = aug_off
-        if self.augment_offline is not None:
+        if self.dataset_config.augment_offline is not None:
             self.augment_dataset(50, self.augment_strategy)
 
         self.image_list: Optional[List[str]] = self.get_image_list(self.filt)
         self.label_list: Optional[List[int]] = self.get_label_list()
 
-        self.crop_size: int = crop_size
-        self.img_size: Optional[int] = img_size
-        self.in_dim = self.img_size
+        self.in_dim = self.dataset_config.image_size
         self.out_dim = len(self.label_to_idx)
 
         self.mean: Optional[float] = None
         self.std: Optional[float] = None
 
-        self.subsets_dict: SubsetsDict = self.split_dataset(split_ratios)
+        self.subsets_dict: SubsetsDict = self.split_dataset(self.dataset_config.dataset_splits)
 
     def __getitem__(self, index):
         return Dataset.__getitem__(self, index)
@@ -184,7 +182,7 @@ class CustomDataset(ABC, Dataset):
         else:
             os.makedirs(self.dataset_aug_path)
         
-        image_list = self.get_image_list(self.augment_offline)
+        image_list = self.get_image_list(self.dataset_config.augment_offline)
         Processing.store_augmented_images(image_list, self.dataset_aug_path, iters, augment_func)
 
         Logger.instance().debug("dataset augmentation completed")

@@ -7,24 +7,24 @@ from ..utils.tools import Logger
 class DatasetBuilder:
 
     @staticmethod
-    def load_dataset(config: DatasetConfig) -> CustomDataset:
-        if config.dataset_type == "opt6":
+    def load_dataset(dataset_config: DatasetConfig) -> CustomDataset:
+        if dataset_config.dataset_type == "opt6":
             Logger.instance().info("Loading dataset GlassOpt (type CustomDataset)")
-            return GlassOpt(config.dataset_path, config.augment_offline, config.augment_online, config.crop_size, config.image_size, config.dataset_splits)
-        elif config.dataset_type == "opt_bckg":
+            return GlassOpt(dataset_config)
+        elif dataset_config.dataset_type == "opt_bckg":
             Logger.instance().info("Loading dataset GlassOptBckg (type GlassOpt)")
-            return GlassOptBckg(config.dataset_path, config.augment_offline, config.augment_online, config.crop_size, config.image_size, config.dataset_splits)
-        elif config.dataset_type == "opt_tricky":
+            return GlassOptBckg(dataset_config)
+        elif dataset_config.dataset_type == "opt_tricky":
             Logger.instance().info("Loading dataset GlassOptTricky (type GlassOpt)")
-            return GlassOptTricky(config.dataset_path, config.augment_offline, config.augment_online, config.crop_size, config.image_size, config.dataset_splits)
-        elif config.dataset_type == "qplusv1":
+            return GlassOptTricky(dataset_config)
+        elif dataset_config.dataset_type == "qplusv1":
             Logger.instance().info("Loading dataset QPlusV1 (type GlassOpt)")
-            return QPlusV1(config.dataset_path, config.augment_offline, config.augment_online, config.crop_size, config.image_size, config.dataset_splits)
-        elif config.dataset_type == "qplusv2":
+            return QPlusV1(dataset_config)
+        elif dataset_config.dataset_type == "qplusv2":
             Logger.instance().info("Loading dataset QPlusV2 (type GlassOpt)")
-            return QPlusV2(config.dataset_path, config.augment_offline, config.augment_online, config.crop_size, config.image_size, config.dataset_splits)
-        elif config.dataset_type == "binary":
+            return QPlusV2(dataset_config)
+        elif dataset_config.dataset_type == "binary":
             Logger.instance().info("Loading dataset BubblePoint (type GlassOpt)")
-            return BubblePoint(config.dataset_path, config.augment_offline, config.augment_online, config.crop_size, config.image_size, config.dataset_splits)
+            return BubblePoint(dataset_config)
         else:
             raise ValueError("values allowed: {`opt6`, `opt_bckg`, `binary`, `qplusv1`, `qplusv2`} for dataset_type")
