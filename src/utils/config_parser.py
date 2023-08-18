@@ -66,10 +66,9 @@ class DatasetConfig:
     dataset_std: Optional[List[float]] = None
 
     @classmethod
-    def deserialize(cls, str_path: str) -> DatasetConfig:
-        obj = Tools.read_json(str_path)
-        
+    def deserialize(cls, obj: Any) -> DatasetConfig:
         try:
+            Tools.check_instance(obj, dict)
             dataset_path = Tools.validate_path(obj.get(_CD.CONFIG_DATASET_PATH))
         except (FileNotFoundError, ValueError) as fnf:
             Logger.instance().error(fnf.args)
@@ -111,19 +110,12 @@ class DatasetConfig:
             f"dataset_path: {dataset_path}, dataset_type: {dataset_type}, dataset_splits: {dataset_splits}, " +
             f"augment_online: {augment_online}, augment_offline: {augment_offline}, dataset mean: {dataset_mean}, " +
             f"dataset_std: {dataset_std}, crop_size: {crop_size}, image_size: {image_size}"
-            )
+        )
         
         return DatasetConfig(dataset_path, dataset_type, dataset_splits, crop_size, image_size, augment_online, augment_offline, dataset_mean, dataset_std)
 
-    def serialize(self, directory: str, filename: str):
+    def serialize(self) -> dict:
         result: dict = {}
-        dire = None
-
-        try:
-            dire = Tools.validate_path(directory)
-        except FileNotFoundError as fnf:
-            Logger.instance().critical(f"{fnf.args}")
-            sys.exit(-1)
         
         # if you do not want to write null values, add a field to result if and only if self.field is not None
         result[_CD.CONFIG_DATASET_PATH] = from_str(self.dataset_path)
@@ -136,12 +128,24 @@ class DatasetConfig:
         result[_CD.CONFIG_DATASET_MEAN] = from_union([lambda x: from_list(from_float, x), from_none], self.dataset_mean)
         result[_CD.CONFIG_DATASET_STD] = from_union([lambda x: from_list(from_float, x), from_none], self.dataset_std)
 
-        with open(os.path.join(dire, filename), "w") as f:
-            json_dict = json.dumps(result, indent=4)
-            f.write(json_dict)
-
-        Logger.instance().info("DatasetConfig serialized")
+        Logger.instance().info(f"DatasetConfig serialized: {result}")
+        return result
 
 
-def config_to_json(x: DatasetConfig) -> Any:
-    return to_class(DatasetConfig, x)
+def read_from_json(str_path: str) -> DatasetConfig:
+    obj = Tools.read_json(str_path)
+    return DatasetConfig.deserialize(obj)
+
+def write_to_json(config: DatasetConfig, directory: str, filename: str) -> None:
+    dire = None
+    
+    try:
+        dire = Tools.validate_path(directory)
+    except FileNotFoundError as fnf:
+        Logger.instance().critical(f"{fnf.args}")
+        sys.exit(-1)
+
+    serialized_config = config.serialize()
+    with open(os.path.join(dire, filename), "w") as f:
+        json_dict = json.dumps(serialized_config, indent=4)
+        f.write(json_dict)

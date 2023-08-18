@@ -5,14 +5,13 @@ import torch
 
 from PIL.Image import Image as PilImgType
 from abc import ABC, abstractmethod, abstractproperty
-from typing import Optional, List, Callable
+from typing import Optional, List, Tuple, Callable
 from dataclasses import dataclass
 from torch.utils.data import Dataset, DataLoader, Subset, random_split
 from torch.utils.data import Subset
 
 from ..imgproc import Processing
 from ..utils.tools import Tools, Logger
-from ..utils.config_parser import DatasetConfig
 from ...config.consts import SubsetsDict
 from ...config.consts import General as _GC
 
@@ -191,7 +190,7 @@ class CustomDataset(ABC, Dataset):
         Logger.instance().debug("dataset augmentation completed")
 
     @staticmethod
-    def compute_mean_std(dataset: CustomDataset, config: DatasetConfig):
+    def compute_mean_std(dataset: CustomDataset) -> Tuple[torch.Tensor, torch.Tensor]:
         # https://discuss.pytorch.org/t/computing-the-mean-and-std-of-dataset/34949/31
         dataloader = DataLoader(dataset, batch_size=32, shuffle=True)
 
@@ -216,7 +215,5 @@ class CustomDataset(ABC, Dataset):
         if any(map(lambda x: torch.isnan(x), mean)) or any(map(lambda x: torch.isnan(x), std)):
             raise ValueError("mean or std are none")
 
-        config.dataset_mean = mean.tolist()
-        config.dataset_std = std.tolist()
-        config.serialize(os.getcwd(), "config/config.json")
         Logger.instance().warning(f"Mean: {mean}, std: {std}. Run the program again.")
+        return mean, std

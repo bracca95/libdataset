@@ -9,7 +9,7 @@ project_root = os.path.abspath(os.path.dirname(os.path.dirname(current_dir)))
 sys.path.insert(0, project_root)
 
 from glass_defect_dataset.src.datasets.dataset_utils import DatasetBuilder
-from glass_defect_dataset.src.utils.config_parser import DatasetConfig
+from glass_defect_dataset.src.utils.config_parser import read_from_json, write_to_json
 from glass_defect_dataset.src.utils.tools import Logger
 
 SEED = 1234         # with the first protonet implementation I used 7
@@ -23,7 +23,7 @@ torch.backends.cudnn.deterministic = True
 
 if __name__=="__main__":
     try:
-        config = DatasetConfig.deserialize("config/config.json")
+        config = read_from_json("config/config.json")
     except Exception as e:
         Logger.instance().critical(e.args)
         sys.exit(-1)
@@ -37,7 +37,10 @@ if __name__=="__main__":
     # compute mean and variance of the dataset if not done yet
     if config.dataset_mean is None and config.dataset_std is None:
         Logger.instance().warning("No mean and std set: computing and storing values.")
-        dataset.compute_mean_std(dataset, config)
+        mean, std = dataset.compute_mean_std(dataset)
+        config.dataset_mean = mean.tolist()
+        config.dataset_std = std.tolist()
+        write_to_json(config, os.getcwd(), "config/config.json")
         sys.exit(0)
 
     # # instantiate model
