@@ -3,12 +3,15 @@ from __future__ import annotations
 import os
 import torch
 
+from PIL import Image
 from PIL.Image import Image as PilImgType
 from abc import ABC, abstractmethod, abstractproperty
 from typing import Optional, List, Tuple, Callable
 from dataclasses import dataclass
 from torch.utils.data import Dataset, DataLoader, Subset, random_split
 from torch.utils.data import Subset
+from torchvision.utils import make_grid
+from torchvision.transforms import transforms
 
 from ..imgproc import Processing
 from ..utils.tools import Tools, Logger
@@ -212,3 +215,15 @@ class CustomDataset(ABC, Dataset):
 
         Logger.instance().warning(f"Mean: {mean}, std: {std}. Run the program again.")
         return mean, std
+    
+    @staticmethod
+    def save_sample_image_batch(dataset: CustomDataset, outfolder: str):
+        if "sample_batch.png" in os.listdir(outfolder):
+            return
+        
+        loader = DataLoader(dataset, batch_size=32, shuffle=True)
+        example_data, _ = next(iter(loader))
+        img_grid = make_grid(example_data)
+
+        grid_pil = transforms.ToPILImage()(img_grid)
+        grid_pil.save(os.path.join(outfolder, "sample_batch.png"))

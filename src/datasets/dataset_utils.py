@@ -1,5 +1,6 @@
 from .dataset import CustomDataset
 from .defectviews import GlassOpt, GlassOptBckg, GlassOptTricky, BubblePoint, QPlusV1, QPlusV2
+from .omniglot import CustomOmniglot
 from ..utils.config_parser import DatasetConfig
 from ..utils.tools import Logger
 
@@ -26,5 +27,8 @@ class DatasetBuilder:
         elif dataset_config.dataset_type == "binary":
             Logger.instance().info("Loading dataset BubblePoint (type GlassOpt)")
             return BubblePoint(dataset_config)
+        elif dataset_config.dataset_type == "omniglot":
+            Logger.instance().info("Loading dataset Omniglot (type CustomDataset)")
+            return CustomOmniglot(dataset_config)
         else:
-            raise ValueError("values allowed: {`opt6`, `opt_bckg`, `binary`, `qplusv1`, `qplusv2`} for dataset_type")
+            raise ValueError("values allowed: {`opt6`, `opt_bckg`, `binary`, `qplusv1`, `qplusv2`, `omniglot`} for dataset_type")

@@ -44,6 +44,15 @@ class GlassOpt(CustomDataset):
         self.augment_strategy = Processing.offline_transforms_v2
         super().__init__(dataset_config)
 
+    def __getitem__(self, index):
+        curr_img_batch = self.image_list[index]
+        curr_label_batch = self.label_list[index]
+        
+        return self.load_image(curr_img_batch), curr_label_batch
+
+    def __len__(self):
+        return len(self.image_list) # type: ignore
+
     def get_image_list(self, filt: List[str]) -> List[str]:
         """Read all the filenames in the dataset directory
 
@@ -127,15 +136,6 @@ class GlassOpt(CustomDataset):
             img = transforms.Normalize(self.mean, self.std)(img)
 
         return img # type: ignore
-
-    def __getitem__(self, index):
-        curr_img_batch = self.image_list[index]
-        curr_label_batch = self.label_list[index]
-        
-        return self.load_image(curr_img_batch), curr_label_batch
-
-    def __len__(self):
-        return len(self.image_list) # type: ignore
 
 
 class GlassOptBckg(GlassOpt):
