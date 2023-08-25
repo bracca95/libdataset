@@ -194,10 +194,11 @@ class QPlusV2(GlassOpt):
         "dust": 7,
         "coating": 8,
         "scratch_heavy": 9,
-        "dirt_halo": 10,
-        "bubble": 11,
-        "bubble_hole": 12
+        "bubble": 10,
+        "bubble_hole": 11
     }
+
+    # "dirt_halo": 12,
 
     idx_to_label = Tools.invert_dict(label_to_idx)
     NO_CROP = list(label_to_idx.keys())
