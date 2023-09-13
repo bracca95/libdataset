@@ -6,12 +6,10 @@ from PIL.Image import Image as PilImgType
 from torch.utils.data import DataLoader, ConcatDataset, Subset
 from torchvision.datasets import Omniglot
 from torchvision.transforms import transforms
-from lib.glass_defect_dataset.config.consts import SubsetsDict
-
-from lib.glass_defect_dataset.src.utils.config_parser import DatasetConfig
 
 from .dataset import CustomDataset
 from ..utils.tools import Tools, Logger
+from ..utils.config_parser import DatasetConfig
 from ...config.consts import SubsetsDict, General as _CG
 
 

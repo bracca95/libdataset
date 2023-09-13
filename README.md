@@ -8,7 +8,7 @@ Edit the `config/config.json` file to start
 
 ```
 "dataset_path": string,
-"dataset_type": {`opt6`, `opt_bckg`, `opt_tricky`, `binary`, `qplusv1`, `qplusv2`, `omniglot`},
+"dataset_type": {`opt6`, `opt_bckg`, `opt_tricky`, `binary`, `qplusv1`, `qplusv2`, `omniglot`, `miniimagenet`},
 "dataset_splits": List[float] (1 for train/test (e.g. [0.8]), 3 for train/val/test),
 "crop_size": int,
 "image_size": int (after crop, reshape can be applied),

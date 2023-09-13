@@ -1,16 +1,21 @@
 {
-    "dataset_path": "/media/lorenzo/M/datasets/dataset_opt/2.3_dataset_opt/views7c/img",
-    "dataset_type": "opt_bckg",
+    "dataset_path": "/media/lorenzo/M/datasets/miniimagenet",
+    "dataset_type": "miniimagenet",
     "dataset_splits": [
         0.8
     ],
     "crop_size": 28,
     "image_size": 105,
     "augment_online": null,
-    "augment_offline": [
-        "break",
-        "mark"
+    "augment_offline": null,
+    "dataset_mean": [
+        0.48500001430511475,
+        0.4560000002384186,
+        0.4059999883174896
     ],
-    "dataset_mean": null,
-    "dataset_std": null
+    "dataset_std": [
+        0.2290000021457672,
+        0.2240000069141388,
+        0.22499999403953552
+    ]
 }

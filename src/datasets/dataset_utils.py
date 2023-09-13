@@ -1,6 +1,7 @@
 from .dataset import CustomDataset
 from .defectviews import GlassOpt, GlassOptBckg, GlassOptTricky, BubblePoint, QPlusV1, QPlusV2
 from .omniglot import CustomOmniglot
+from .miniimagenet import MiniImageNet
 from ..utils.config_parser import DatasetConfig
 from ..utils.tools import Logger
 
@@ -30,5 +31,8 @@ class DatasetBuilder:
         elif dataset_config.dataset_type == "omniglot":
             Logger.instance().info("Loading dataset Omniglot (type CustomDataset)")
             return CustomOmniglot(dataset_config)
+        elif dataset_config.dataset_type == "miniimagenet":
+            Logger.instance().info("Loading dataset Mini Imagenet (type CustomDataset)")
+            return MiniImageNet(dataset_config)
         else:
-            raise ValueError("values allowed: {`opt6`, `opt_bckg`, `binary`, `qplusv1`, `qplusv2`, `omniglot`} for dataset_type")
+            raise ValueError("values allowed: {`opt6`, `opt_bckg`, `binary`, `qplusv1`, `qplusv2`, `omniglot`, `miniimagenet`} for dataset_type")

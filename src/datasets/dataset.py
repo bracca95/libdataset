@@ -189,6 +189,10 @@ class CustomDataset(ABC, Dataset):
 
     @staticmethod
     def compute_mean_std(dataset: CustomDataset) -> Tuple[torch.Tensor, torch.Tensor]:
+        if "imagenet" in dataset.dataset_config.dataset_type:
+            Logger.instance().debug(f"Dataset type is {dataset.dataset_config.dataset_type}: imagenet mean/std selected")
+            return torch.Tensor([0.485, 0.456, 0.406]), torch.Tensor([0.229, 0.224, 0.225])
+
         # https://discuss.pytorch.org/t/computing-the-mean-and-std-of-dataset/34949/31
         dataloader = DataLoader(dataset, batch_size=32, shuffle=True)
 
