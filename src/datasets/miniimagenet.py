@@ -58,7 +58,7 @@ class MiniImageNet(CustomDataset):
         return [self.label_to_idx[os.path.basename(os.path.dirname(image_name))] for image_name in self.image_list]
     
     def load_image(self, path: str) -> torch.Tensor:
-        img_pil = Image.open(path).convert("L") # TODO use three channels!
+        img_pil = Image.open(path).convert("RGB")
         
         # resize
         img_pil = transforms.Resize((self.dataset_config.image_size, self.dataset_config.image_size))(img_pil)
