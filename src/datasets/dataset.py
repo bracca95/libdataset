@@ -150,9 +150,10 @@ class CustomDataset(ABC, Dataset):
         if self.subsets_dict[subset_str_id] is None:
             info_dict = None
         else:
-            subset_labels = [self[idx][1] for idx in self.subsets_dict[subset_str_id].indices]
-            classes = list(set(subset_labels))
-            info_dict = { self.idx_to_label[i]: subset_labels.count(i) for i in classes }
+            idxs = torch.IntTensor(self.subsets_dict[subset_str_id].indices)
+            subset_labels = torch.index_select(torch.IntTensor(self.label_list), 0, idxs)
+            classes = torch.unique(subset_labels)
+            info_dict = { self.idx_to_label[i]: torch.eq(subset_labels, i).sum().item() for i in classes.tolist() }
             Logger.instance().debug(f"{subset_str_id} has {len(classes)} classes: {info_dict}")
         
         return SubsetInfo(subset_str_id, self.subsets_dict[subset_str_id], info_dict)
