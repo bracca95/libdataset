@@ -23,19 +23,19 @@ class CustomOmniglot(CustomDataset):
     idx_to_label = Tools.invert_dict(label_to_idx)
 
     def __init__(self, dataset_config: DatasetConfig):
-        super().__init__(dataset_config)
         self.train_dataset = Omniglot(
-            os.path.dirname(self.dataset_config.dataset_path),
+            os.path.dirname(dataset_config.dataset_path),
             background=True,
             transform=transforms.ToTensor(),
             download=True
         )
         
+        # for the test set, start labelling from the train set's highest label value+1
         self._max_train_label = self._get_max_train_label()
-
         target_transform = lambda x: self._add_constant(x)
+        
         self.test_dataset = Omniglot(
-            os.path.dirname(self.dataset_config.dataset_path),
+            os.path.dirname(dataset_config.dataset_path),
             background=False,
             transform=transforms.ToTensor(),
             target_transform=target_transform,
@@ -43,9 +43,8 @@ class CustomOmniglot(CustomDataset):
         )
 
         self.full_dataset = ConcatDataset([self.train_dataset, self.test_dataset])
-        self.subsets_dict: SubsetsDict = self.split_torch_dataset()
-
-        self.label_list = self.get_label_list()
+        # self.augment_strategy = None/Processing.[] # should you need to augment, put the method here
+        super().__init__(dataset_config)
 
     def __getitem__(self, index):
         return self.full_dataset[index]
@@ -59,20 +58,19 @@ class CustomOmniglot(CustomDataset):
     
     @augment_strategy.setter
     def augment_strategy(self, val):
+        # assign the real value if needed
         self._augment_strategy = None
 
     def get_image_list(self, filt: Optional[List[str]]) -> List[str]:
         return []
     
     def get_label_list(self) -> List[int]:
-        # this is called in super(), but the dataset has not been initialized yet. Fill the value after super() has finished (bad practice)
-        if not hasattr(self, "full_dataset"):
-            return []
-        
         r = torch.arange(CustomOmniglot.N_CLASSES_TRAIN + CustomOmniglot.N_CLASSES_TEST).reshape(-1, 1)
         return r.expand(-1, CustomOmniglot.N_IMG_PER_CLASS).flatten().tolist()
     
-    def split_torch_dataset(self) -> SubsetsDict:
+    def split_dataset(self, split_ratios: List[float]=[.8]) -> SubsetsDict:
+        # ignore split_ratios for this dataset
+
         train_set = Subset(self, [i for i in range(len(self.train_dataset))])
         test_set = Subset(self, [i for i in range(len(self.train_dataset), len(self.train_dataset) + len(self.test_dataset))])
 

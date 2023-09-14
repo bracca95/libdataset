@@ -77,9 +77,6 @@ class CustomDataset(ABC, Dataset):
         self.in_dim = self.dataset_config.image_size
         self.out_dim = len(self.label_to_idx)
 
-        self.mean: Optional[float] = None
-        self.std: Optional[float] = None
-
         self.subsets_dict: SubsetsDict = self.split_dataset(self.dataset_config.dataset_splits)
 
     def __getitem__(self, index):

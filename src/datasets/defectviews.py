@@ -132,8 +132,12 @@ class GlassOpt(CustomDataset):
         img = transforms.ToTensor()(img_pil)
 
         # normalize
-        if self.mean is not None and self.std is not None:
-            img = transforms.Normalize(self.mean, self.std)(img)
+        if self.dataset_config.dataset_mean is not None and self.dataset_config.dataset_std is not None:
+            normalize = transforms.Normalize(
+                torch.Tensor(self.dataset_config.dataset_mean),
+                torch.Tensor(self.dataset_config.dataset_std)
+            )
+            img = normalize(img)
 
         return img # type: ignore
 

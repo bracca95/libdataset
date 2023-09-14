@@ -21,9 +21,9 @@ class MiniImageNet(CustomDataset):
     N_CLASSES_TEST = 20
 
     def __init__(self, dataset_config: DatasetConfig):
+        self.dataset_config = dataset_config
+        # self.augment_strategy = None/Processing.[] # should you need to augment, put the method here
         super().__init__(dataset_config)
-
-        self.subsets_dict: SubsetsDict = self._split_torch_dataset()
 
     def __getitem__(self, index):
         curr_img_batch = self.image_list[index]
@@ -40,6 +40,7 @@ class MiniImageNet(CustomDataset):
     
     @augment_strategy.setter
     def augment_strategy(self, val):
+        # assign the real value if needed
         self._augment_strategy = None
 
     def get_image_list(self, filt: Optional[List[str]]) -> List[str]:
@@ -67,12 +68,18 @@ class MiniImageNet(CustomDataset):
         img = transforms.ToTensor()(img_pil)
 
         # normalize
-        if self.mean is not None and self.std is not None:
-            img = transforms.Normalize(self.mean, self.std)(img)
+        if self.dataset_config.dataset_mean is not None and self.dataset_config.dataset_std is not None:
+            normalize = transforms.Normalize(
+                torch.Tensor(self.dataset_config.dataset_mean),
+                torch.Tensor(self.dataset_config.dataset_std)
+            )
+            img = normalize(img)
 
         return img # type: ignore
     
-    def _split_torch_dataset(self) -> SubsetsDict:
+    def split_dataset(self, split_ratios: List[float]=[.8]) -> SubsetsDict:
+        # ignore split_ratios for this dataset
+
         if not len(self.image_list) == len(self):
             raise ValueError(f"MiniImagenet must have 600*100 images. You have {len(self.image_list)}")
         
@@ -94,4 +101,11 @@ class MiniImageNet(CustomDataset):
         train_str, val_str, test_str = _CG.DEFAULT_SUBSETS
         
         Logger.instance().debug(f"Splitting miniimagenet: [{len(train_set)}, {len(val_set)}, {len(test_set)}]")
+
+        # avoid using validation dataset if 0.0 is specified in the config.dataset.dataset_splits
+        if len(self.dataset_config.dataset_splits) == 3:
+            if self.dataset_config.dataset_splits[1] < 0.1:
+                Logger.instance().warning(f"Overriding validation set: empty! No validation will be performed.")
+                val_set = None
+                
         return { train_str: train_set, val_str: val_set, test_str: test_set }   # type: ignore

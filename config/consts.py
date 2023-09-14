@@ -13,7 +13,7 @@ class General:
     DEFAULT_STR = ""
     DEFAULT_LIST = []
     DEFAULT_SUBSETS = ["train", "val", "test"]
-    DEVICE = "cuda:0" if torch.cuda.is_available() else "cpu"
+    DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
     EPS = 0.001
 
 
