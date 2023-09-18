@@ -1,5 +1,5 @@
 from .dataset import CustomDataset
-from .defectviews import GlassOpt, GlassOptBckg, GlassOptTricky, BubblePoint, QPlusV1, QPlusV2
+from .defectviews import GlassOpt, GlassOptBckg, GlassOptTricky, GlassOptDouble, BubblePoint, QPlusV1, QPlusV2
 from .omniglot import CustomOmniglot
 from .miniimagenet import MiniImageNet
 from ..utils.config_parser import DatasetConfig
@@ -19,6 +19,9 @@ class DatasetBuilder:
         elif dataset_config.dataset_type == "opt_tricky":
             Logger.instance().info("Loading dataset GlassOptTricky (type GlassOpt)")
             return GlassOptTricky(dataset_config)
+        elif dataset_config.dataset_type == "opt_double":
+            Logger.instance().info("Loading dataset GlassOptDouble (type GlassOpt)")
+            return GlassOptDouble(dataset_config)
         elif dataset_config.dataset_type == "qplusv1":
             Logger.instance().info("Loading dataset QPlusV1 (type GlassOpt)")
             return QPlusV1(dataset_config)

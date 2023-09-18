@@ -6,6 +6,8 @@ from glob import glob
 from typing import List
 from torchvision import transforms
 
+from lib.glass_defect_dataset.src.utils.config_parser import DatasetConfig
+
 from .dataset import CustomDataset
 from ..imgproc import Processing
 from ..utils.tools import Logger, Tools
@@ -231,8 +233,7 @@ class GlassOptTricky(GlassOpt):
         "background": 0,
         "bubble": 1, 
         "point": 2,
-        "dirt": 3,
-        "scratch": 4
+        "dirt": 3
     }
 
     idx_to_label = Tools.invert_dict(label_to_idx)
@@ -242,3 +243,84 @@ class GlassOptTricky(GlassOpt):
 
     def __init__(self, dataset_config: DatasetConfig):
         super().__init__(dataset_config)
+
+
+class GlassOptDouble(GlassOpt):
+
+    """{
+        'break': 2,
+        'bubble': 1740,
+        'dirt': 308,
+        'dirt_point_small': 36,
+        'mark': 6,
+        'point': 282,
+        'scratch_heavy': 160
+        }
+    """
+
+    label_to_idx = {
+        "bubble": 0,
+        "point": 1,
+        "dirt": 2,
+        "scratch_heavy": 3
+    }
+
+    idx_to_label = Tools.invert_dict(label_to_idx)
+
+    NO_CROP = ["scratch_heavy", "dirt"]     # list(label_to_idx.keys()) 
+    split_name = staticmethod(lambda x: os.path.basename(x).rsplit("_did", 1)[0])
+
+    # use only one channel (only for test purpose)
+    TEST_ONE = False
+
+    def __init__(self, dataset_config: DatasetConfig):
+        super().__init__(dataset_config)
+
+    # TODO: image aumentation. For the moment, avoid augmentation as in Tricky (augs are random, must apply the same to both channels)
+    def get_image_list(self, filt: List[str]) -> List[str]:
+        image_list = glob(os.path.join(self.dataset_config.dataset_path, "*.png"))
+        image_list = list(filter(lambda x: x.endswith("vid_1.png"), image_list))
+        image_list = list(filter(lambda x: Tools.check_string(self.split_name(x), filt, True, True), image_list))
+        
+        if not all(map(lambda x: x.endswith(".png"), image_list)) or image_list == []:
+            raise ValueError("incorrect image list. Check the provided path for your dataset.")
+        
+        Logger.instance().info("Got image list")
+
+        return image_list
+    
+    def load_image(self, path: str) -> torch.Tensor:
+        path_2 = path.replace("_vid_1.png", "_vid_2.png")
+
+        img_pil_1 = Image.open(path).convert("L")
+        img_pil_2 = Image.open(path_2).convert("L")
+
+        # crop
+        if not Tools.check_string(os.path.basename(path), self.NO_CROP, False, False):
+            img_pil_1 = Processing.crop_no_padding(img_pil_1, self.dataset_config.crop_size, path)
+            img_pil_2 = Processing.crop_no_padding(img_pil_2, self.dataset_config.crop_size, path)
+        
+        # resize
+        img_pil_1 = transforms.Resize((self.dataset_config.image_size, self.dataset_config.image_size))(img_pil_1)
+        img_pil_2 = transforms.Resize((self.dataset_config.image_size, self.dataset_config.image_size))(img_pil_2)
+
+        # rescale [0-255](int) to [0-1](float)
+        img_1 = transforms.ToTensor()(img_pil_1)
+        img_2 = transforms.ToTensor()(img_pil_2)
+
+        img = torch.stack([img_1, img_2], dim=0).squeeze(1)
+
+        # if use only one channel for test
+        if GlassOptDouble.TEST_ONE:
+            del img
+            img = img_1.clone()
+
+        # normalize
+        if self.dataset_config.dataset_mean is not None and self.dataset_config.dataset_std is not None:
+            normalize = transforms.Normalize(
+                torch.Tensor(self.dataset_config.dataset_mean),
+                torch.Tensor(self.dataset_config.dataset_std)
+            )
+            img = normalize(img)
+
+        return img # type: ignore
