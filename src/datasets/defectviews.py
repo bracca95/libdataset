@@ -247,7 +247,8 @@ class GlassOptTricky(GlassOpt):
 
 class GlassOptDouble(GlassOpt):
 
-    """{
+    """Cropping here makes no sense if the defect is not centered!
+    {
         'break': 2,
         'bubble': 1740,
         'dirt': 308,
@@ -255,7 +256,7 @@ class GlassOptDouble(GlassOpt):
         'mark': 6,
         'point': 282,
         'scratch_heavy': 160
-        }
+    }
     """
 
     label_to_idx = {
@@ -267,7 +268,7 @@ class GlassOptDouble(GlassOpt):
 
     idx_to_label = Tools.invert_dict(label_to_idx)
 
-    NO_CROP = ["scratch_heavy", "dirt"]     # list(label_to_idx.keys()) 
+    NO_CROP = list(label_to_idx.keys())  # ["scratch_heavy", "dirt"]
     split_name = staticmethod(lambda x: os.path.basename(x).rsplit("_did", 1)[0])
 
     # use only one channel (only for test purpose)
@@ -311,7 +312,7 @@ class GlassOptDouble(GlassOpt):
         img = torch.stack([img_1, img_2], dim=0).squeeze(1)
 
         # if use only one channel for test
-        if GlassOptDouble.TEST_ONE:
+        if self.TEST_ONE:
             del img
             img = img_1.clone()
 
@@ -324,3 +325,47 @@ class GlassOptDouble(GlassOpt):
             img = normalize(img)
 
         return img # type: ignore
+    
+
+class QPlusDouble(GlassOptDouble):
+
+    """{
+        'bubble': 196,
+        'bubble_hole': 2,
+        'bubble_small': 48,
+        'dirt': 130,
+        'dirt_halo': 6,
+        'point': 276,
+        'dirt_p_multi': 6,
+        'dust': 18,
+        'halo': 170,
+        'halo_points': 100,
+        'inclusion': 14,
+        'mark': 2,
+        'point_td': 2,
+        'scratch_heavy': 2,
+        'scratch_light': 138,
+        'scratch_multi': 6
+    }
+    """
+
+    label_to_idx = {
+        "bubble": 0,
+        "bubble_small": 1,
+        "dirt": 2,
+        "halo": 3,
+        "halo_points": 4,
+        "point": 5,
+        "scratch_light": 6,
+    }
+
+    idx_to_label = Tools.invert_dict(label_to_idx)
+
+    NO_CROP = list(label_to_idx.keys()) # ["scratch_heavy", "dirt"]
+    split_name = staticmethod(lambda x: os.path.basename(x).rsplit("_did", 1)[0])
+
+    # use only one channel (only for test purpose)
+    TEST_ONE = True
+
+    def __init__(self, dataset_config: DatasetConfig):
+        super().__init__(dataset_config)
