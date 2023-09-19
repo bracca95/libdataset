@@ -6,8 +6,6 @@ from glob import glob
 from typing import List
 from torchvision import transforms
 
-from lib.glass_defect_dataset.src.utils.config_parser import DatasetConfig
-
 from .dataset import CustomDataset
 from ..imgproc import Processing
 from ..utils.tools import Logger, Tools
@@ -134,12 +132,7 @@ class GlassOpt(CustomDataset):
         img = transforms.ToTensor()(img_pil)
 
         # normalize
-        if self.dataset_config.dataset_mean is not None and self.dataset_config.dataset_std is not None:
-            normalize = transforms.Normalize(
-                torch.Tensor(self.dataset_config.dataset_mean),
-                torch.Tensor(self.dataset_config.dataset_std)
-            )
-            img = normalize(img)
+        img = self.normalize_or_identity(self.dataset_config)(img)
 
         return img # type: ignore
 
@@ -317,12 +310,7 @@ class GlassOptDouble(GlassOpt):
             img = img_1.clone()
 
         # normalize
-        if self.dataset_config.dataset_mean is not None and self.dataset_config.dataset_std is not None:
-            normalize = transforms.Normalize(
-                torch.Tensor(self.dataset_config.dataset_mean),
-                torch.Tensor(self.dataset_config.dataset_std)
-            )
-            img = normalize(img)
+        img = self.normalize_or_identity(self.dataset_config)(img)
 
         return img # type: ignore
     
@@ -365,7 +353,7 @@ class QPlusDouble(GlassOptDouble):
     split_name = staticmethod(lambda x: os.path.basename(x).rsplit("_did", 1)[0])
 
     # use only one channel (only for test purpose)
-    TEST_ONE = True
+    TEST_ONE = False
 
     def __init__(self, dataset_config: DatasetConfig):
         super().__init__(dataset_config)

@@ -219,6 +219,31 @@ class CustomDataset(ABC, Dataset):
         return mean, std
     
     @staticmethod
+    def normalize_or_identity(dataset_config: DatasetConfig) -> torch.nn.Module:
+        """Normalize image/s by dataset's mean and std
+
+        If config allows normalization, first check if the mean and std values are available to perform the it. If not,
+        returns the original image via identity function. This case can either be an error in configuration or it is 
+        necessary when this method is called during the computation of the dataset's mean and std (load_image method).
+
+        Args:
+            dataset_config (..utils.config_parser.DatasetConfig)
+
+        Returns:
+            torch.nn.Module: Normalize module (with computed mean/std) or identity function
+        """
+
+        if dataset_config.normalize:
+            if dataset_config.dataset_mean is not None and dataset_config.dataset_std is not None:
+                normalize = transforms.Normalize(
+                    torch.Tensor(dataset_config.dataset_mean),
+                    torch.Tensor(dataset_config.dataset_std)
+                )
+                return normalize
+
+        return torch.nn.Identity()
+    
+    @staticmethod
     def save_sample_image_batch(dataset: CustomDataset, outfolder: str):
         if "sample_batch.png" in os.listdir(outfolder):
             return

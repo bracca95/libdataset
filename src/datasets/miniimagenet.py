@@ -68,12 +68,7 @@ class MiniImageNet(CustomDataset):
         img = transforms.ToTensor()(img_pil)
 
         # normalize
-        if self.dataset_config.dataset_mean is not None and self.dataset_config.dataset_std is not None:
-            normalize = transforms.Normalize(
-                torch.Tensor(self.dataset_config.dataset_mean),
-                torch.Tensor(self.dataset_config.dataset_std)
-            )
-            img = normalize(img)
+        img = self.normalize_or_identity(self.dataset_config)(img)
 
         return img # type: ignore
     

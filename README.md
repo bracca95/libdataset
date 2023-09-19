@@ -10,6 +10,7 @@ Edit the `config/config.json` file to start
 "dataset_path": string,
 "dataset_type": {`opt6`, `opt_bckg`, `opt_double` `binary`, `qplusv1`, `qplusv2`, `qplus_double` `omniglot`, `miniimagenet`},
 "dataset_splits": List[float] (1 for train/test (e.g. [0.8]), 3 for train/val/test),
+"normalize": bool,
 "crop_size": int,
 "image_size": int (after crop, reshape can be applied),
 "augment_online": Optional[List[str]] (classes for online augmentation),

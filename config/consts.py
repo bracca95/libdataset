@@ -21,6 +21,7 @@ class DatasetConst:
     CONFIG_DATASET_PATH = "dataset_path"
     CONFIG_DATASET_TYPE = "dataset_type"
     CONFIG_DATASET_SPLITS = "dataset_splits"
+    CONFIG_NORMALIZE = "normalize"
     CONFIG_AUGMENT_ONLINE = "augment_online"
     CONFIG_AUGMENT_OFFLINE = "augment_offline"
     CONFIG_CROP_SIZE = "crop_size"

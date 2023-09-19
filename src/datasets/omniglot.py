@@ -26,7 +26,7 @@ class CustomOmniglot(CustomDataset):
         self.train_dataset = Omniglot(
             os.path.dirname(dataset_config.dataset_path),
             background=True,
-            transform=transforms.ToTensor(),
+            transform=transforms.Compose([transforms.ToTensor(), self.normalize_or_identity(dataset_config)]),
             download=True
         )
         
@@ -37,7 +37,7 @@ class CustomOmniglot(CustomDataset):
         self.test_dataset = Omniglot(
             os.path.dirname(dataset_config.dataset_path),
             background=False,
-            transform=transforms.ToTensor(),
+            transform=transforms.Compose([transforms.ToTensor(), self.normalize_or_identity(dataset_config)]),
             target_transform=target_transform,
             download=True
         )

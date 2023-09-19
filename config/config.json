@@ -4,18 +4,11 @@
     "dataset_splits": [
         0.8
     ],
-    "crop_size": 28,
+    "normalize": true,
+    "crop_size": 60,
     "image_size": 105,
     "augment_online": null,
     "augment_offline": null,
-    "dataset_mean": [
-        0.48500001430511475,
-        0.4560000002384186,
-        0.4059999883174896
-    ],
-    "dataset_std": [
-        0.2290000021457672,
-        0.2240000069141388,
-        0.22499999403953552
-    ]
+    "dataset_mean": null,
+    "dataset_std": null
 }
