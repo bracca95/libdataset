@@ -1,4 +1,8 @@
+from typing import Union
+from torch.utils.data import Dataset
+
 from .dataset import CustomDataset
+from .glass_plate import GlassPlate
 from .defectviews import GlassOpt, GlassOptBckg, GlassOptTricky, GlassOptDouble, BubblePoint, QPlusV1, QPlusV2, QPlusDouble
 from .omniglot import CustomOmniglot
 from .miniimagenet import MiniImageNet
@@ -9,7 +13,7 @@ from ..utils.tools import Logger
 class DatasetBuilder:
 
     @staticmethod
-    def load_dataset(dataset_config: DatasetConfig) -> CustomDataset:
+    def load_dataset(dataset_config: DatasetConfig) -> Union[CustomDataset, Dataset]:
         if dataset_config.dataset_type == "opt6":
             Logger.instance().info("Loading dataset GlassOpt (type CustomDataset)")
             return GlassOpt(dataset_config)
@@ -40,8 +44,11 @@ class DatasetBuilder:
         elif dataset_config.dataset_type == "miniimagenet":
             Logger.instance().info("Loading dataset Mini Imagenet (type CustomDataset)")
             return MiniImageNet(dataset_config)
+        elif dataset_config.dataset_type == "opt_plate":
+            Logger.instance().info("Loading dataset GlassPlate (type Dataset)")
+            return GlassPlate(dataset_config)
         else:
             raise ValueError(
                 "values allowed: {`opt6`, `opt_bckg`, `opt_double` `binary`, `qplusv1`, `qplusv2`, " +
-                "`qplus_double` `omniglot`, `miniimagenet`} for dataset_type"
+                "`qplus_double` `omniglot`, `miniimagenet`, `opt_plate`} for dataset_type"
             )
