@@ -70,6 +70,7 @@ class SinglePlate:
 
         # wrap
         for _, group in df.groupby(_CH.COL_ID_DEFECT):
+            defect_id = group[_CH.COL_ID_DEFECT]
             defect_class = group[_CH.COL_CLASS_KEY]
             bbox_min_x = min(group[_CH.COL_BBOX_MIN_X])
             bbox_max_x = max(group[_CH.COL_BBOX_MAX_X])
@@ -108,6 +109,27 @@ class SinglePlate:
         draw.rectangle([patch.defects[0].min_x, patch.defects[0].min_y, patch.defects[0].max_x, patch.defects[0].max_y], (255, 0, 0))
         crop.save("output/patch.png")
 
+    @staticmethod
+    def __debug_save_exact_defect(defect_id: int, patch: Patch):
+        img_1 = Image.open(patch.plate_paths.ch_1).convert("L")
+        img_2 = Image.open(patch.plate_paths.ch_2).convert("L")
+
+        patch_coords = (patch.start_w, patch.start_h, patch.start_w + patch.w, patch.start_h + patch.h)
+        defect_coords = (patch.defects[0].min_x, patch.defects[0].min_y, patch.defects[0].max_x, patch.defects[0].max_y)
+        
+        patch_1 = img_1.crop(patch_coords)
+        patch_2 = img_2.crop(patch_coords)
+
+        defect_1 = patch_1.crop(defect_coords)
+        defect_2 = patch_2.crop(defect_coords)
+
+        try:
+            defect_1.save(f"output/{patch.defects[0].defect_class}_did_{defect_id}_vid_1.png")
+            defect_2.save(f"output/{patch.defects[0].defect_class}_did_{defect_id}_vid_2.png")
+        except SystemError:
+            Logger.instance().error(f"There is an error in the bounding box, check values: {patch.defects[0]}")
+        except AttributeError:
+            Logger.instance().error(f"There is an error in the bounding box, check values: {patch.defects[0]}")
 
 class Patch:
 
