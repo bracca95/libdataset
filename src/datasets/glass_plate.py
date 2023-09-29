@@ -6,13 +6,15 @@ import pandas as pd
 
 from PIL import Image
 from glob import glob
+from functools import reduce
+from itertools import groupby
 from typing import Optional, Union, List, Tuple
 from dataclasses import dataclass
 from torch.utils.data import Dataset as TorchDataset
 from torchvision.transforms import transforms
 
 from .dataset import CustomDataset
-from ..utils.tools import Logger
+from ..utils.tools import Logger, Tools
 from ..utils.config_parser import DatasetConfig
 from ...config.consts import SubsetsDict
 from ...config.consts import General as _CG
@@ -31,12 +33,22 @@ class Bbox:
 class SinglePlate:
     """Single glass plate class"""
 
+    PATCH_SIZE = 640
+    PATCH_STRIDE = 210
+    
+    idx_to_label = {
+        0: "bubble",
+        1: "scratch_heavy"
+    }
+
+    label_to_idx = Tools.invert_dict(idx_to_label)
+
     def __init__(self, ch_1: str, ch_2: str):
         self.ch_1 = ch_1
         self.ch_2 = ch_2
 
         # TODO make as args
-        self.patch_list = self.create_patch_list(patch_w=416, patch_h=416, stride=400)
+        self.patch_list = self.create_patch_list(patch_w=self.PATCH_SIZE, patch_h=self.PATCH_SIZE, stride=self.PATCH_STRIDE)
 
     def create_patch_list(self, patch_w: int, patch_h: int, stride: int) -> List[Patch]:
         """Create a list of patches for a single glass plate
@@ -76,6 +88,14 @@ class SinglePlate:
             bbox_max_x = max(group[_CH.COL_BBOX_MAX_X])
             bbox_min_y = min(group[_CH.COL_BBOX_MIN_Y])
             bbox_max_y = max(group[_CH.COL_BBOX_MAX_Y])
+
+            if bbox_min_x == bbox_max_x:
+                bbox_min_x -= 1
+                bbox_max_x += 1
+
+            if bbox_min_y == bbox_max_y:
+                bbox_min_y -= 1
+                bbox_max_y += 1
 
             # check if there is a defect in a patch
             for patch in self.patch_list:
@@ -202,6 +222,19 @@ class GlassPlate(TorchDataset):
         self.patches_all = [patch for plate in self.plate_list for patch in plate.patch_list]
         self.patches_with_defects = list(filter(lambda x: x.defects is not None, self.patches_all))
 
+        ## save for YOLO part
+        # objs = self.patches_with_defects.copy()
+        # objs = objs.sort(key=lambda x: x.plate_paths.ch_1)
+        # grouped = {key: list(group) for key, group in groupby(objs, key=lambda x: x.plate_paths.ch_1)}
+
+        train_list, test_list = self._train_test_split()
+
+        # save yolo format patches here
+        for idx, defect in enumerate(train_list):
+            self.__save_yolo_format(idx, defect, "train")
+        for idx, defect in enumerate(test_list):
+            self.__save_yolo_format(idx, defect, "test")
+
         # TODO self.subsets_dict: SubsetsDict = self.split_dataset(self.dataset_config.dataset_splits)
         
         super().__init__()
@@ -297,39 +330,48 @@ class GlassPlate(TorchDataset):
 
     def get_defect_class(self, df: pd.DataFrame):
         return set(df[_CH.COL_CLASS_KEY].unique())
+    
+    def _train_test_split(self):
+        # mandatory to have defects in train, so pass `self.patches_with_defects`
+        filt = list(SinglePlate.idx_to_label.values())
+        n_defect: dict = self.n_defect_per_class(self.patches_with_defects, filt=filt)
+        
+        ds_len = reduce(lambda a, b: a+b, list(n_defect.values()))
+        ratio = 0.7
+        info_split = { k: [int(v * ratio), v-int(v * ratio)] for k, v in n_defect.items() }
 
-    def n_defect_per_class(self, df: pd.DataFrame, classes: Optional[List[str]]):
-        """Print the number of defects for each class.
+        train_list_defect = []
+        test_list_defect = []
+        for k, v in info_split.items():
+            i = 0
+            for patch in self.patches_with_defects:
+                if any(map(lambda x: x.defect_class == k, patch.defects)):
+                    if i < v[-1]:
+                        test_list_defect.append(patch)
+                        i += 1
+                    else:
+                        train_list_defect.append(patch)
 
-        The classes specified in the config/config.json file are searched in the dataframe and, for each of them, the
-        number of defects is returned. If no classes are provided, all the defect classes in the dataframe are taken 
-        into account.
+        return train_list_defect, test_list_defect
 
-        Args:
-            df (pd.DataFrame): may apply on differently filtered dataframes, not necessarily the main of this class
-            classes (Optional[List[str]]): list of defect defined in the config/config.json file.
-            
-        """
+    def n_defect_per_class(self, patches_w_defects: List[Patch], filt: Optional[List[str]]) -> dict:
+        filter_patches = patches_w_defects.copy()
+        cls_filt = set(self._df[_CH.COL_CLASS_KEY].tolist())
 
-        defect_classes = list(self.get_defect_class(df))
-        selected_classes = set()
+        # check if at least one element of the one specified (filt) is in the defect list for each pat
+        if filt is not None:
+            cls_filt = set(filt)
+            filter_patches = list(filter(lambda x: len(set([d.defect_class for d in x.defects]) & (cls_filt)) > 0, patches_w_defects))
+        
+        # init defect dictionary
+        numel_defect = { c: 0 for c in cls_filt }
+        for patch in filter_patches:
+            for d in patch.defects:
+                for f in cls_filt:
+                    if d.defect_class == f:
+                        numel_defect[f] += 1
 
-        if classes is None or len(classes) == 0:
-            # consider all the classes found in df
-            selected_classes = set(defect_classes).copy()
-            Logger.instance().info(f"defects: \n{df[_CH.COL_CLASS_KEY].value_counts()}")
-        else:
-            # check if wrong names were inserted in the config.json file
-            req_classes = set(classes)
-            for col in req_classes:
-                if col not in defect_classes:
-                    Logger.instance().warning(f"No defect named {col}")
-                else:    
-                    selected_classes.add(col)
-
-            Logger.instance().info("defects: \n" +\
-                f"{df.loc[df[_CH.COL_CLASS_KEY].isin(selected_classes), _CH.COL_CLASS_KEY].value_counts()}"
-            )
+        return numel_defect
 
     def get_one_view_per_channel(self, df: pd.DataFrame, order_by: Optional[List[str]]=None) -> Optional[pd.DataFrame]:
         """Return one view for each channel
@@ -374,6 +416,43 @@ class GlassPlate(TorchDataset):
             
         Logger.instance().debug(f"sort by: {order_by}")
         return df.sort_values(order_by, ascending=[True] * len(order_by))
+    
+    @staticmethod
+    def __save_yolo_format(patch_idx: int, patch: Patch, split: str):
+        if patch.defects is None:
+            Logger.instance().error("This patch do not contain defects!")
+            return
+
+        filtered_defects = [d for d in patch.defects if d.defect_class in list(SinglePlate.label_to_idx.keys())]
+        image_folder_path = os.path.join(os.getcwd(), "output", split, "images")
+        label_folder_path = os.path.join(os.getcwd(), "output", split, "labels")
+
+        if not os.path.exists(image_folder_path): os.makedirs(image_folder_path)
+        if not os.path.exists(label_folder_path): os.makedirs(label_folder_path)
+
+        # save image file (.png)
+        patch_filename = os.path.join(image_folder_path, f"patch_{patch_idx}.png")
+        img_1 = Image.open(patch.plate_paths.ch_1).convert("L")
+        img_2 = Image.open(patch.plate_paths.ch_2).convert("L")
+        crop_1 = img_1.crop((patch.start_w, patch.start_h, patch.start_w + patch.w, patch.start_h + patch.h))
+        crop_2 = img_2.crop((patch.start_w, patch.start_h, patch.start_w + patch.w, patch.start_h + patch.h))
+        img_merge = Image.new("LA", crop_1.size)
+        img_merge.paste(crop_1, (0, 0))
+        img_merge.paste(crop_2, (0, 0), crop_2)
+        img_merge.save(patch_filename)
+        
+        # writing annotations
+        with open(os.path.join(label_folder_path, f"patch_{patch_idx}.txt"), "a") as f:
+            for didx, defect in enumerate(filtered_defects):
+                x = float((defect.max_x + defect.min_x) / 2) / float(SinglePlate.PATCH_SIZE)
+                y = float((defect.max_y + defect.min_y) / 2) / float(SinglePlate.PATCH_SIZE)
+                w = float((defect.max_x - defect.min_x) / SinglePlate.PATCH_SIZE)
+                h = float((defect.max_y - defect.min_y) / SinglePlate.PATCH_SIZE)
+                line = f"{SinglePlate.label_to_idx[defect.defect_class]} {x} {y} {w} {h}"
+                if didx == 0:
+                    f.writelines(line)
+                else:
+                    f.writelines(f"\n{line}")
 
     @staticmethod
     def compute_mean_std(dataset: Union[CustomDataset, TorchDataset]) -> Tuple[torch.Tensor, torch.Tensor]:
