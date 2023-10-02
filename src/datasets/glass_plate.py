@@ -38,7 +38,9 @@ class SinglePlate:
     
     idx_to_label = {
         0: "bubble",
-        1: "scratch_heavy"
+        1: "scratch_heavy",
+        2: "point",
+        3: "dirt"
     }
 
     label_to_idx = Tools.invert_dict(idx_to_label)
@@ -82,18 +84,20 @@ class SinglePlate:
 
         # wrap
         for _, group in df.groupby(_CH.COL_ID_DEFECT):
-            defect_id = group[_CH.COL_ID_DEFECT]
-            defect_class = group[_CH.COL_CLASS_KEY]
+            defect_id = group[_CH.COL_ID_DEFECT].tolist()[0]
+            defect_class = group[_CH.COL_CLASS_KEY].tolist()[0]
             bbox_min_x = min(group[_CH.COL_BBOX_MIN_X])
             bbox_max_x = max(group[_CH.COL_BBOX_MAX_X])
             bbox_min_y = min(group[_CH.COL_BBOX_MIN_Y])
             bbox_max_y = max(group[_CH.COL_BBOX_MAX_Y])
 
             if bbox_min_x == bbox_max_x:
+                Logger.instance().warning(f"min/max x overlap in defect {defect_id}: increasing bb width")
                 bbox_min_x -= 1
                 bbox_max_x += 1
 
             if bbox_min_y == bbox_max_y:
+                Logger.instance().warning(f"min/max y overlap in defect {defect_id}: increasing height")
                 bbox_min_y -= 1
                 bbox_max_y += 1
 
@@ -101,7 +105,7 @@ class SinglePlate:
             for patch in self.patch_list:
                 if bbox_min_x > patch.start_w and bbox_min_y > patch.start_h \
                 and bbox_max_x < patch.start_w + patch.w and bbox_max_y < patch.start_h + patch.h:
-                    abs_bbox = Bbox(defect_class.tolist()[0], bbox_min_x, bbox_max_x, bbox_min_y, bbox_max_y)
+                    abs_bbox = Bbox(defect_class, bbox_min_x, bbox_max_x, bbox_min_y, bbox_max_y)
                     patch.map_defect_locally(abs_bbox)
                     # debug: can save image here
 
@@ -122,6 +126,7 @@ class SinglePlate:
     
     @staticmethod
     def __debug_save_image_patch(patch: Patch):
+        # call this in SinglePlate::locate_defects
         from PIL import ImageDraw
         img = Image.open(patch.plate_paths.ch_1).convert("RGB")
         crop = img.crop((patch.start_w, patch.start_h, patch.start_w + patch.w, patch.start_h + patch.h))
@@ -130,7 +135,8 @@ class SinglePlate:
         crop.save("output/patch.png")
 
     @staticmethod
-    def __debug_save_exact_defect(defect_id: int, patch: Patch):
+    def __save_exact_defect(defect_id: int, patch: Patch):
+        # call this in SinglePlate::locate_defects
         img_1 = Image.open(patch.plate_paths.ch_1).convert("L")
         img_2 = Image.open(patch.plate_paths.ch_2).convert("L")
 
@@ -223,17 +229,15 @@ class GlassPlate(TorchDataset):
         self.patches_with_defects = list(filter(lambda x: x.defects is not None, self.patches_all))
 
         ## save for YOLO part
-        # objs = self.patches_with_defects.copy()
-        # objs = objs.sort(key=lambda x: x.plate_paths.ch_1)
-        # grouped = {key: list(group) for key, group in groupby(objs, key=lambda x: x.plate_paths.ch_1)}
-
         train_list, test_list = self._train_test_split()
+        ord_train_list = self._sort_by_plate_filename(train_list)
+        ord_test_list = self._sort_by_plate_filename(test_list)
 
         # save yolo format patches here
-        for idx, defect in enumerate(train_list):
-            self.__save_yolo_format(idx, defect, "train")
-        for idx, defect in enumerate(test_list):
-            self.__save_yolo_format(idx, defect, "test")
+        for idx, k in enumerate(ord_train_list):
+            self.__save_yolo_format(idx, ord_train_list[k], "train")
+        for idx, k in enumerate(ord_test_list):
+            self.__save_yolo_format(idx, ord_test_list[k], "test")
 
         # TODO self.subsets_dict: SubsetsDict = self.split_dataset(self.dataset_config.dataset_splits)
         
@@ -418,12 +422,10 @@ class GlassPlate(TorchDataset):
         return df.sort_values(order_by, ascending=[True] * len(order_by))
     
     @staticmethod
-    def __save_yolo_format(patch_idx: int, patch: Patch, split: str):
-        if patch.defects is None:
-            Logger.instance().error("This patch do not contain defects!")
-            return
+    def __save_yolo_format(plate_idx: int, plate_patch_list: List[Patch], split: str):
+        parent_plate_ch1 = plate_patch_list[0].plate_paths.ch_1
+        parent_plate_ch2 = plate_patch_list[0].plate_paths.ch_2
 
-        filtered_defects = [d for d in patch.defects if d.defect_class in list(SinglePlate.label_to_idx.keys())]
         image_folder_path = os.path.join(os.getcwd(), "output", split, "images")
         label_folder_path = os.path.join(os.getcwd(), "output", split, "labels")
 
@@ -431,28 +433,50 @@ class GlassPlate(TorchDataset):
         if not os.path.exists(label_folder_path): os.makedirs(label_folder_path)
 
         # save image file (.png)
-        patch_filename = os.path.join(image_folder_path, f"patch_{patch_idx}.png")
-        img_1 = Image.open(patch.plate_paths.ch_1).convert("L")
-        img_2 = Image.open(patch.plate_paths.ch_2).convert("L")
-        crop_1 = img_1.crop((patch.start_w, patch.start_h, patch.start_w + patch.w, patch.start_h + patch.h))
-        crop_2 = img_2.crop((patch.start_w, patch.start_h, patch.start_w + patch.w, patch.start_h + patch.h))
-        img_merge = Image.new("LA", crop_1.size)
-        img_merge.paste(crop_1, (0, 0))
-        img_merge.paste(crop_2, (0, 0), crop_2)
-        img_merge.save(patch_filename)
+        img_1 = Image.open(parent_plate_ch1).convert("L")
+        img_2 = Image.open(parent_plate_ch2).convert("L")
+
+        for patch_idx, patch in enumerate(plate_patch_list):
+            patch_basename = f"plate_{plate_idx}_patch_{patch_idx}"
+            # check if a patch has defects (safe check)
+            if not patch.defects:
+                Logger.instance().warning(f"No defects in selected patch")
+                continue
+
+            # filter patches that have specific defects (SinglePlate class attributes)
+            filtered_defects = []
+            for d in patch.defects:
+                if d.defect_class in list(SinglePlate.label_to_idx.keys()):
+                    filtered_defects.append(d)
+
+            # if a patch has any of those specific defects, then save the image patch
+            if len(filtered_defects) > 0:
+                patch_filename = os.path.join(image_folder_path, f"{patch_basename}.png")
+                crop_1 = img_1.crop((patch.start_w, patch.start_h, patch.start_w + patch.w, patch.start_h + patch.h))
+                crop_2 = img_2.crop((patch.start_w, patch.start_h, patch.start_w + patch.w, patch.start_h + patch.h))
+                img_merge = Image.new("LA", crop_1.size)
+                img_merge.paste(crop_1, (0, 0))
+                img_merge.paste(crop_2, (0, 0), crop_2)
+                img_merge.save(patch_filename)
         
-        # writing annotations
-        with open(os.path.join(label_folder_path, f"patch_{patch_idx}.txt"), "a") as f:
-            for didx, defect in enumerate(filtered_defects):
-                x = float((defect.max_x + defect.min_x) / 2) / float(SinglePlate.PATCH_SIZE)
-                y = float((defect.max_y + defect.min_y) / 2) / float(SinglePlate.PATCH_SIZE)
-                w = float((defect.max_x - defect.min_x) / SinglePlate.PATCH_SIZE)
-                h = float((defect.max_y - defect.min_y) / SinglePlate.PATCH_SIZE)
-                line = f"{SinglePlate.label_to_idx[defect.defect_class]} {x} {y} {w} {h}"
-                if didx == 0:
-                    f.writelines(line)
-                else:
-                    f.writelines(f"\n{line}")
+                # writing annotations
+                with open(os.path.join(label_folder_path, f"{patch_basename}.txt"), "a") as f:
+                    for didx, defect in enumerate(filtered_defects):
+                        x = float((defect.max_x + defect.min_x) / 2) / float(SinglePlate.PATCH_SIZE)
+                        y = float((defect.max_y + defect.min_y) / 2) / float(SinglePlate.PATCH_SIZE)
+                        w = float((defect.max_x - defect.min_x) / float(SinglePlate.PATCH_SIZE))
+                        h = float((defect.max_y - defect.min_y) / float(SinglePlate.PATCH_SIZE))
+                        line = f"{SinglePlate.label_to_idx[defect.defect_class]} {x} {y} {w} {h}"
+                        if didx == 0:
+                            f.writelines(line)
+                        else:
+                            f.writelines(f"\n{line}")
+
+    @staticmethod
+    def _sort_by_plate_filename(patch_list: List[Patch]):
+        objs = patch_list.copy()
+        objs.sort(key=lambda x: x.plate_paths.ch_1)
+        return { key: list(group) for key, group in groupby(objs, key=lambda x: x.plate_paths.ch_1) }
 
     @staticmethod
     def compute_mean_std(dataset: Union[CustomDataset, TorchDataset]) -> Tuple[torch.Tensor, torch.Tensor]:
