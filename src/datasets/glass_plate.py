@@ -34,7 +34,7 @@ class SinglePlate:
     """Single glass plate class"""
 
     PATCH_SIZE = 60
-    PATCH_STRIDE = 80
+    PATCH_STRIDE = 50
     
     ## uncomment to choose which (2 cls vs 4 cls)
 
@@ -65,6 +65,7 @@ class SinglePlate:
 
         # TODO make as args
         self.patch_list = self.create_patch_list(patch_w=self.PATCH_SIZE, patch_h=self.PATCH_SIZE, stride=self.PATCH_STRIDE)
+        self.patch_list_defects: List[Patch] = list()
 
     def create_patch_list(self, patch_w: int, patch_h: int, stride: int) -> List[Patch]:
         """Create a list of patches for a single glass plate
@@ -85,7 +86,7 @@ class SinglePlate:
         img_w, img_h = Image.open(self.ch_1).size
         return self.sliding_window(self, img_w, img_h, patch_w, patch_h, stride)
     
-    def locate_defects(self, df: pd.DataFrame):
+    def locate_defects(self, df: pd.DataFrame, filt: Optional[List[str]]):
         """Locate defects in the patch
 
         Starting from the world frame location, convert it to the body frame. Since there are two channels, which have
@@ -94,12 +95,19 @@ class SinglePlate:
 
         Args:
             df (pd.DataFrame): the dataframe grouped by defects for that specific plate.
+            filt (Optional[List[str]]): classes to select. If None, use all defect classes
         """
 
         # wrap
         for _, group in df.groupby(_CH.COL_ID_DEFECT):
             defect_id = group[_CH.COL_ID_DEFECT].tolist()[0]
             defect_class = group[_CH.COL_CLASS_KEY].tolist()[0]
+
+            # skip
+            if defect_class is not None and defect_class not in filt: 
+                Logger.instance().info(f"skipping defect class {defect_class}: not included in {filt}")
+                continue
+            
             bbox_min_x = min(group[_CH.COL_BBOX_MIN_X])
             bbox_max_x = max(group[_CH.COL_BBOX_MAX_X])
             bbox_min_y = min(group[_CH.COL_BBOX_MIN_Y])
@@ -118,9 +126,12 @@ class SinglePlate:
             # check if there is a defect in a patch
             for patch in self.patch_list:
                 if bbox_min_x > patch.start_w and bbox_min_y > patch.start_h \
-                and bbox_max_x < patch.start_w + patch.w and bbox_max_y < patch.start_h + patch.h:
+                and bbox_max_x < patch.start_w + patch.w and bbox_max_y < patch.start_h + patch.h \
+                and defect_class in filt:
                     abs_bbox = Bbox(defect_class, bbox_min_x, bbox_max_x, bbox_min_y, bbox_max_y)
                     patch.map_defect_locally(abs_bbox)
+                    self.patch_list_defects.append(patch)
+                    break # keep only one patch with the same defect, do not duplicate
                     # debug: can save image here
 
     def tolist(self):
@@ -230,8 +241,7 @@ class GlassPlate(TorchDataset):
 
         # get names of each channel, grouping by plate
         all_dataset_images = glob(os.path.join(self.dataset_config.dataset_path, "202*", "*.png")) # CHECK: only channel 1
-        plate_names = set(list(map(lambda x: x.rsplit("_", 1)[0], all_dataset_images)))
-        self.plate_list = list(map(lambda x: SinglePlate(f"{x}_1.png", f"{x}_2.png"), plate_names))
+        plate_name_list = set(map(lambda x: x.rsplit("_", 1)[0], all_dataset_images))
         
         # additional check: all images named in the df must be present in the image directory
         if any(map(lambda x: x not in set(all_dataset_images), self._df[_CH.COL_IMG_NAME].to_list())):
@@ -244,24 +254,30 @@ class GlassPlate(TorchDataset):
         df = df.groupby("plate_group").agg(list).reset_index()
 
         # find defects in each plate
-        for plate in self.plate_list:
+        self.patches_with_defects = []
+        for plate_name in plate_name_list:
+            plate = SinglePlate(f"{plate_name}_1.png", f"{plate_name}_2.png")
             filtered_df = df[df[_CH.COL_IMG_NAME].apply(lambda x: all(item in x for item in plate.tolist()))]
             if filtered_df.empty: continue
             filtered_df = filtered_df.explode(list(self._df.columns), ignore_index=True).drop(columns=["plate_group"])
-            plate.locate_defects(filtered_df)
+            plate.locate_defects(filtered_df, filt=list(SinglePlate.label_to_idx.keys()))
+            self.patches_with_defects.extend(plate.patch_list_defects)
 
-        self.patches_all = [patch for plate in self.plate_list for patch in plate.patch_list]
-        self.patches_with_defects = list(filter(lambda x: x.defects is not None, self.patches_all))
         Logger.instance().debug(f"There are {len(self.patches_with_defects)} patches that contain defects (any).")
 
         ## save for YOLO part
-        train_list, test_list = self._train_test_split()
+        if len(self.dataset_config.dataset_splits) < 3:
+            raise ValueError(f"YOLO need train/val/test splits: set config to have three splits.")
+        train_list, val_list, test_list = self._train_test_split(self.dataset_config.dataset_splits)
         ord_train_list = self._sort_by_plate_filename(train_list)
+        ord_val_list = self._sort_by_plate_filename(val_list)
         ord_test_list = self._sort_by_plate_filename(test_list)
 
         # save yolo format patches here
         for idx, k in enumerate(ord_train_list):
             self.__save_yolo_format(idx, ord_train_list[k], "train", self.dataset_config.image_size)
+        for idx, k in enumerate(ord_val_list):
+            self.__save_yolo_format(idx, ord_val_list[k], "val", self.dataset_config.image_size)
         for idx, k in enumerate(ord_test_list):
             self.__save_yolo_format(idx, ord_test_list[k], "test", self.dataset_config.image_size)
 
@@ -278,7 +294,7 @@ class GlassPlate(TorchDataset):
     def __len__(self):
         return len(self.patches_with_defects)
 
-    def _load_batch_patch(self, patch: Patch):
+    def _load_batch_patch(self, patch: Patch) -> torch.Tensor:
         full_img_pil_1 = Image.open(patch.plate_paths.ch_1).convert("L")
         img_pil_1 = full_img_pil_1.crop((patch.start_w, patch.start_h, patch.start_w + patch.w, patch.start_h + patch.h))
         del full_img_pil_1
@@ -361,28 +377,37 @@ class GlassPlate(TorchDataset):
     def get_defect_class(self, df: pd.DataFrame):
         return set(df[_CH.COL_CLASS_KEY].unique())
     
-    def _train_test_split(self):
+    def _train_test_split(self, ratios: List[float]) -> Tuple[List[Patch], List[Patch], List[Patch]]:
         # mandatory to have defects in train, so pass `self.patches_with_defects` or a subset containing defects
         filt = list(SinglePlate.idx_to_label.values())
         n_defect: dict = self.n_defect_per_class(self.patches_with_defects, filt=filt)
         
         ds_len = reduce(lambda a, b: a+b, list(n_defect.values()))
-        ratio = 0.7
-        info_split = { k: [int(v * ratio), v-int(v * ratio)] for k, v in n_defect.items() }
+        splits = { k: [
+                int(v * ratios[0]),
+                int(v * ratios[1]),
+                v-(int(v * ratios[0]) + int(v * ratios[1]))
+            ] for k, v in n_defect.items() 
+        }
 
-        train_list_defect = []
-        test_list_defect = []
-        for k, v in info_split.items():
-            i = 0
+        train_list_defect: List[Patch] = list()
+        val_list_defect: List[Patch] = list()
+        test_list_defect: List[Patch] = list()
+        for k, v in splits.items():
+            count_val = 0
+            count_test = 0
             for patch in self.patches_with_defects:
                 if any(map(lambda x: x.defect_class == k, patch.defects)):
-                    if i < v[-1]:
+                    if count_val < v[1]:
+                        val_list_defect.append(patch)
+                        count_val += 1
+                    elif count_test < v[2]:
                         test_list_defect.append(patch)
-                        i += 1
+                        count_test += 1
                     else:
                         train_list_defect.append(patch)
 
-        return train_list_defect, test_list_defect
+        return train_list_defect, val_list_defect, test_list_defect
 
     def n_defect_per_class(self, patches_w_defects: List[Patch], filt: Optional[List[str]]) -> dict:
         filter_patches = patches_w_defects.copy()

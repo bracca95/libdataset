@@ -2,7 +2,9 @@
     "dataset_path": "/media/lorenzo/M/datasets/dataset_opt",
     "dataset_type": "opt_plate",
     "dataset_splits": [
-        0.8
+        0.7,
+        0.1,
+        0.2
     ],
     "normalize": false,
     "crop_size": 60,
