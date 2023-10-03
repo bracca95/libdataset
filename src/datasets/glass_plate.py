@@ -33,14 +33,28 @@ class Bbox:
 class SinglePlate:
     """Single glass plate class"""
 
-    PATCH_SIZE = 640
-    PATCH_STRIDE = 210
+    PATCH_SIZE = 60
+    PATCH_STRIDE = 80
     
+    ## uncomment to choose which (2 cls vs 4 cls)
+
+    ## 4 cls
+    # idx_to_label = {
+    #     0: "bubble",
+    #     1: "scratch_heavy",
+    #     2: "point",
+    #     3: "dirt"
+    # }
+
+    ## 2 cls
+    # idx_to_label = {
+    #     0: "bubble",
+    #     1: "scratch_heavy"
+    # }
+
+    ## bubbles only
     idx_to_label = {
-        0: "bubble",
-        1: "scratch_heavy",
-        2: "point",
-        3: "dirt"
+        0: "bubble"
     }
 
     label_to_idx = Tools.invert_dict(idx_to_label)
@@ -119,8 +133,19 @@ class SinglePlate:
         for i in range(0, img_h - patch_h + 1, stride):
             for j in range(0, img_w - patch_w + 1, stride):
                 patch = Patch(plate, j, i, patch_w, patch_h)
-                #patch = image_tensor[:, i:i + patch_size[0], j:j + patch_size[1]]
                 patch_list.append(patch)
+            
+            # include last column patch for each line
+            patch = Patch(plate, img_w - patch_w, i, patch_w, patch_h)
+            patch_list.append(patch)
+
+        # include last row patches
+        for j in range(0, img_w - patch_w + 1, stride):
+            patch = Patch(plate, j, img_h - patch_h, patch_w, patch_h)
+            patch_list.append(patch)
+
+        patch = Patch(plate, img_w - patch_w, img_h - patch_h, patch_w, patch_h)
+        patch_list.append(patch)
 
         return patch_list
     
@@ -227,6 +252,7 @@ class GlassPlate(TorchDataset):
 
         self.patches_all = [patch for plate in self.plate_list for patch in plate.patch_list]
         self.patches_with_defects = list(filter(lambda x: x.defects is not None, self.patches_all))
+        Logger.instance().debug(f"There are {len(self.patches_with_defects)} patches that contain defects (any).")
 
         ## save for YOLO part
         train_list, test_list = self._train_test_split()
@@ -235,9 +261,9 @@ class GlassPlate(TorchDataset):
 
         # save yolo format patches here
         for idx, k in enumerate(ord_train_list):
-            self.__save_yolo_format(idx, ord_train_list[k], "train")
+            self.__save_yolo_format(idx, ord_train_list[k], "train", self.dataset_config.image_size)
         for idx, k in enumerate(ord_test_list):
-            self.__save_yolo_format(idx, ord_test_list[k], "test")
+            self.__save_yolo_format(idx, ord_test_list[k], "test", self.dataset_config.image_size)
 
         # TODO self.subsets_dict: SubsetsDict = self.split_dataset(self.dataset_config.dataset_splits)
         
@@ -336,7 +362,7 @@ class GlassPlate(TorchDataset):
         return set(df[_CH.COL_CLASS_KEY].unique())
     
     def _train_test_split(self):
-        # mandatory to have defects in train, so pass `self.patches_with_defects`
+        # mandatory to have defects in train, so pass `self.patches_with_defects` or a subset containing defects
         filt = list(SinglePlate.idx_to_label.values())
         n_defect: dict = self.n_defect_per_class(self.patches_with_defects, filt=filt)
         
@@ -422,7 +448,7 @@ class GlassPlate(TorchDataset):
         return df.sort_values(order_by, ascending=[True] * len(order_by))
     
     @staticmethod
-    def __save_yolo_format(plate_idx: int, plate_patch_list: List[Patch], split: str):
+    def __save_yolo_format(plate_idx: int, plate_patch_list: List[Patch], split: str, img_size: int=640):
         parent_plate_ch1 = plate_patch_list[0].plate_paths.ch_1
         parent_plate_ch2 = plate_patch_list[0].plate_paths.ch_2
 
@@ -454,10 +480,16 @@ class GlassPlate(TorchDataset):
                 patch_filename = os.path.join(image_folder_path, f"{patch_basename}.png")
                 crop_1 = img_1.crop((patch.start_w, patch.start_h, patch.start_w + patch.w, patch.start_h + patch.h))
                 crop_2 = img_2.crop((patch.start_w, patch.start_h, patch.start_w + patch.w, patch.start_h + patch.h))
+                
+                ## alpha channel
                 img_merge = Image.new("LA", crop_1.size)
                 img_merge.paste(crop_1, (0, 0))
                 img_merge.paste(crop_2, (0, 0), crop_2)
-                img_merge.save(patch_filename)
+                
+                ## RGB
+                # img_merge = Image.merge("RGB", (crop_1, crop_2, crop_2))
+                
+                (img_merge.resize((img_size,img_size), resample=Image.BILINEAR)).save(patch_filename)
         
                 # writing annotations
                 with open(os.path.join(label_folder_path, f"{patch_basename}.txt"), "a") as f:

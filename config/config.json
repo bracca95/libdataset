@@ -6,7 +6,7 @@
     ],
     "normalize": false,
     "crop_size": 60,
-    "image_size": 105,
+    "image_size": 640,
     "augment_online": null,
     "augment_offline": null,
     "dataset_mean": null,
