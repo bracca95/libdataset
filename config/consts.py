@@ -5,6 +5,7 @@ from typing import Optional, TypeVar, TypedDict
 
 T = TypeVar("T")
 SubsetsDict = TypedDict("SubsetsDict", { "train": Subset, "val": Optional[Subset], "test": Subset })
+PlatePathsDict = TypedDict("PlatePathsDict", { "ch_1": str, "ch_2": str })
 
 
 class General:

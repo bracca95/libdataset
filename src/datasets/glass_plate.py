@@ -16,7 +16,7 @@ from torchvision.transforms import transforms
 from .dataset import CustomDataset
 from ..utils.tools import Logger, Tools
 from ..utils.config_parser import DatasetConfig
-from ...config.consts import SubsetsDict
+from ...config.consts import PlatePathsDict
 from ...config.consts import General as _CG
 from ...config.consts import BboxFileHeader as _CH
 
@@ -30,29 +30,59 @@ class Bbox:
     max_y: int
 
 
+class Patch:
+
+    def __init__(self, plate_paths: PlatePathsDict, start_w: int, start_h: int, w: int, h: int):
+        self.plate_paths = plate_paths
+        self.start_w = start_w
+        self.start_h = start_h
+        self.w = w
+        self.h = h
+        
+        self.defects: Optional[List[Bbox]] = None
+
+    def __eq__(self, __value: Patch) -> bool:
+        if self.plate_paths == __value.plate_paths \
+            and self.start_w == __value.start_w \
+            and self.start_h == __value.start_h \
+            and self.w == __value.w \
+            and self.h == __value.h:
+            return True
+        
+        return False
+
+    def map_defect_locally(self, abs_bbox: Bbox):
+        """Map defect on a single patch
+
+        Starting from the world frame location, convert it to the body frame. Since there are two channels, which have
+        slightly different bounding boxes (depending on the intensity for each channel), wrap them to assign one
+        bound box for each two-channel image.
+
+        Args:
+            abs_bbox (Bbox): the values read from the csv file
+        """
+
+        rel_bbox_min_x = abs_bbox.min_x - self.start_w
+        rel_bbox_max_x = rel_bbox_min_x + (abs_bbox.max_x - abs_bbox.min_x)
+        rel_bbox_min_y = abs_bbox.min_y - self.start_h
+        rel_bbox_max_y = rel_bbox_min_y + (abs_bbox.max_y - abs_bbox.min_y)
+
+        relative_bbox = Bbox(abs_bbox.defect_class, rel_bbox_min_x, rel_bbox_max_x, rel_bbox_min_y, rel_bbox_max_y)
+        
+        if self.defects is None:
+            self.defects = [relative_bbox]
+            return
+        
+        self.defects.append(relative_bbox)
+
+
 class SinglePlate:
     """Single glass plate class"""
 
     PATCH_SIZE = 60
     PATCH_STRIDE = 50
-    
-    ## uncomment to choose which (2 cls vs 4 cls)
+    UPSCALE = 640
 
-    ## 4 cls
-    # idx_to_label = {
-    #     0: "bubble",
-    #     1: "scratch_heavy",
-    #     2: "point",
-    #     3: "dirt"
-    # }
-
-    ## 2 cls
-    # idx_to_label = {
-    #     0: "bubble",
-    #     1: "scratch_heavy"
-    # }
-
-    ## bubbles only
     idx_to_label = {
         0: "bubble"
     }
@@ -63,16 +93,22 @@ class SinglePlate:
         self.ch_1 = ch_1
         self.ch_2 = ch_2
 
-        # TODO make as args
         self.patch_list = self.create_patch_list(patch_w=self.PATCH_SIZE, patch_h=self.PATCH_SIZE, stride=self.PATCH_STRIDE)
         self.patch_list_defects: List[Patch] = list()
+
+    def tolist(self) -> List[str]:
+        return [self.ch_1, self.ch_2]
+    
+    def to_platepaths(self) -> PlatePathsDict:
+        return { "ch_1": self.ch_1, "ch_2": self.ch_2 }
 
     def create_patch_list(self, patch_w: int, patch_h: int, stride: int) -> List[Patch]:
         """Create a list of patches for a single glass plate
 
         Use a sliding window approach to create fixed size image patch where defects are mapped from the world frame
         (absolute values found in the csv) to the body frame (local patch). The full image is open to check its size.
-        There might be faster method to infer it.
+        There might be faster method to infer it. This method collects ALL the possible patches for a single plate,
+        independentely of any filters or anomalies.
 
         Args:
             patch_w (int): desired patch width (columns)
@@ -86,7 +122,7 @@ class SinglePlate:
         img_w, img_h = Image.open(self.ch_1).size
         return self.sliding_window(self, img_w, img_h, patch_w, patch_h, stride)
     
-    def locate_defects(self, df: pd.DataFrame, filt: Optional[List[str]]):
+    def locate_defects(self, filtered_df: pd.DataFrame, filt: Optional[List[str]]):
         """Locate defects in the patch
 
         Starting from the world frame location, convert it to the body frame. Since there are two channels, which have
@@ -94,12 +130,12 @@ class SinglePlate:
         bound box for each two-channel image. Do this for every patch.
 
         Args:
-            df (pd.DataFrame): the dataframe grouped by defects for that specific plate.
+            filtered_df (pd.DataFrame): the dataframe grouped by defects for that specific plate.
             filt (Optional[List[str]]): classes to select. If None, use all defect classes
         """
 
         # wrap
-        for _, group in df.groupby(_CH.COL_ID_DEFECT):
+        for _, group in filtered_df.groupby(_CH.COL_ID_DEFECT):
             defect_id = group[_CH.COL_ID_DEFECT].tolist()[0]
             defect_class = group[_CH.COL_CLASS_KEY].tolist()[0]
 
@@ -119,7 +155,7 @@ class SinglePlate:
                 bbox_max_x += 1
 
             if bbox_min_y == bbox_max_y:
-                Logger.instance().warning(f"min/max y overlap in defect {defect_id}: increasing height")
+                Logger.instance().warning(f"min/max y overlap in defect {defect_id}: increasing bb height")
                 bbox_min_y -= 1
                 bbox_max_y += 1
 
@@ -131,31 +167,39 @@ class SinglePlate:
                     abs_bbox = Bbox(defect_class, bbox_min_x, bbox_max_x, bbox_min_y, bbox_max_y)
                     patch.map_defect_locally(abs_bbox)
                     self.patch_list_defects.append(patch)
-                    break # keep only one patch with the same defect, do not duplicate
                     # debug: can save image here
-
-    def tolist(self):
-        return [self.ch_1, self.ch_2]
     
     @staticmethod
     def sliding_window(plate: SinglePlate, img_w: int, img_h: int, patch_w: int, patch_h: int, stride: int) -> List[Patch]:
+        """Sliding window over a plate
+
+        Args:
+            plate (SinglePlate): the image for which I want to create patches
+            img_w (int): SinglePlate's original width
+            img_h (int): SinglePlate's original height
+            patch_w (int): desired patch width
+            patch_h (int): desired patch height
+            stride (int): desired stride
+        """
+        
         # the image size is reduced. Consider enhancing the method by padding
         patch_list: List[Patch] = list()
         for i in range(0, img_h - patch_h + 1, stride):
             for j in range(0, img_w - patch_w + 1, stride):
-                patch = Patch(plate, j, i, patch_w, patch_h)
+                patch = Patch(plate.to_platepaths(), j, i, patch_w, patch_h)
                 patch_list.append(patch)
             
             # include last column patch for each line
-            patch = Patch(plate, img_w - patch_w, i, patch_w, patch_h)
+            patch = Patch(plate.to_platepaths(), img_w - patch_w, i, patch_w, patch_h)
             patch_list.append(patch)
 
-        # include last row patches
+        # include last row patches (last column not included)
         for j in range(0, img_w - patch_w + 1, stride):
-            patch = Patch(plate, j, img_h - patch_h, patch_w, patch_h)
+            patch = Patch(plate.to_platepaths(), j, img_h - patch_h, patch_w, patch_h)
             patch_list.append(patch)
 
-        patch = Patch(plate, img_w - patch_w, img_h - patch_h, patch_w, patch_h)
+        # include last column (bottom right)
+        patch = Patch(plate.to_platepaths(), img_w - patch_w, img_h - patch_h, patch_w, patch_h)
         patch_list.append(patch)
 
         return patch_list
@@ -164,7 +208,7 @@ class SinglePlate:
     def __debug_save_image_patch(patch: Patch):
         # call this in SinglePlate::locate_defects
         from PIL import ImageDraw
-        img = Image.open(patch.plate_paths.ch_1).convert("RGB")
+        img = Image.open(patch.plate_paths["ch_1"]).convert("RGB")
         crop = img.crop((patch.start_w, patch.start_h, patch.start_w + patch.w, patch.start_h + patch.h))
         draw = ImageDraw.Draw(crop)
         draw.rectangle([patch.defects[0].min_x, patch.defects[0].min_y, patch.defects[0].max_x, patch.defects[0].max_y], (255, 0, 0))
@@ -173,8 +217,8 @@ class SinglePlate:
     @staticmethod
     def __save_exact_defect(defect_id: int, patch: Patch):
         # call this in SinglePlate::locate_defects
-        img_1 = Image.open(patch.plate_paths.ch_1).convert("L")
-        img_2 = Image.open(patch.plate_paths.ch_2).convert("L")
+        img_1 = Image.open(patch.plate_paths["ch_1"]).convert("L")
+        img_2 = Image.open(patch.plate_paths["ch_2"]).convert("L")
 
         patch_coords = (patch.start_w, patch.start_h, patch.start_w + patch.w, patch.start_h + patch.h)
         defect_coords = (patch.defects[0].min_x, patch.defects[0].min_y, patch.defects[0].max_x, patch.defects[0].max_y)
@@ -193,137 +237,21 @@ class SinglePlate:
         except AttributeError:
             Logger.instance().error(f"There is an error in the bounding box, check values: {patch.defects[0]}")
 
-class Patch:
 
-    def __init__(self, plate_paths: SinglePlate, start_w: int, start_h: int, w: int, h: int):
-        self.plate_paths = plate_paths
-        self.start_w = start_w
-        self.start_h = start_h
-        self.w = w
-        self.h = h
-        
-        self.defects: Optional[List[Bbox]] = None
-
-    def map_defect_locally(self, abs_bbox: Bbox):
-        """Map defect on a single patch
-
-        Starting from the world frame location, convert it to the body frame. Since there are two channels, which have
-        slightly different bounding boxes (depending on the intensity for each channel), wrap them to assign one
-        bound box for each two-channel image.
-
-        Args:
-            abs_bbox (Bbox): the values read from the csv file
-        """
-
-        rel_bbox_min_x = abs_bbox.min_x - self.start_w
-        rel_bbox_max_x = rel_bbox_min_x + (abs_bbox.max_x - abs_bbox.min_x) # self.start_w + self.w - abs_bbox.max_x
-        rel_bbox_min_y = abs_bbox.min_y - self.start_h
-        rel_bbox_max_y = rel_bbox_min_y + (abs_bbox.max_y - abs_bbox.min_y)
-
-        relative_bbox = Bbox(abs_bbox.defect_class, rel_bbox_min_x, rel_bbox_max_x, rel_bbox_min_y, rel_bbox_max_y)
-        
-        if self.defects is None:
-            self.defects = [relative_bbox]
-            return
-        
-        self.defects.append(relative_bbox)
-
-class GlassPlate(TorchDataset):
-
-    TEST_ONE = False
+class GlassPlate:
 
     def __init__(self, dataset_config: DatasetConfig):
         self.dataset_config = dataset_config
+        
+        # get names of each channel, grouping by plate
+        self.all_dataset_images = glob(os.path.join(self.dataset_config.dataset_path, "202*", "*.png"))
+        self.plate_name_set = set(map(lambda x: x.rsplit("_", 1)[0], self.all_dataset_images))
 
         # read csv by filtering classes and returning
-        self._dataset_csv = "/media/lorenzo/M/datasets/dataset_opt/2.2_dataset_opt/bounding_boxes.csv"
-        self._df = self.parse_csv(filt=None)
+        self._dataset_csv = "/media/lorenzo/M/datasets/dataset_opt/2.2_dataset_opt/bounding_boxes_new.csv"
+        self._df = self.parse_csv(self.all_dataset_images, filt=None)
 
-        # get names of each channel, grouping by plate
-        all_dataset_images = glob(os.path.join(self.dataset_config.dataset_path, "202*", "*.png")) # CHECK: only channel 1
-        plate_name_list = set(map(lambda x: x.rsplit("_", 1)[0], all_dataset_images))
-        
-        # additional check: all images named in the df must be present in the image directory
-        if any(map(lambda x: x not in set(all_dataset_images), self._df[_CH.COL_IMG_NAME].to_list())):
-            # TODO discard those instead of raising exception
-            raise ValueError(f"There dataframe at {self._dataset_csv} contains image path references that do not exist")
-
-        # group df for same plate (names)
-        df = self._df.copy()
-        df["plate_group"] = df[_CH.COL_IMG_NAME].str.extract(r'(.+)_')[0]
-        df = df.groupby("plate_group").agg(list).reset_index()
-
-        # find defects in each plate
-        self.patches_with_defects = []
-        for plate_name in plate_name_list:
-            plate = SinglePlate(f"{plate_name}_1.png", f"{plate_name}_2.png")
-            filtered_df = df[df[_CH.COL_IMG_NAME].apply(lambda x: all(item in x for item in plate.tolist()))]
-            if filtered_df.empty: continue
-            filtered_df = filtered_df.explode(list(self._df.columns), ignore_index=True).drop(columns=["plate_group"])
-            plate.locate_defects(filtered_df, filt=list(SinglePlate.label_to_idx.keys()))
-            self.patches_with_defects.extend(plate.patch_list_defects)
-
-        Logger.instance().debug(f"There are {len(self.patches_with_defects)} patches that contain defects (any).")
-
-        ## save for YOLO part
-        if len(self.dataset_config.dataset_splits) < 3:
-            raise ValueError(f"YOLO need train/val/test splits: set config to have three splits.")
-        train_list, val_list, test_list = self._train_test_split(self.dataset_config.dataset_splits)
-        ord_train_list = self._sort_by_plate_filename(train_list)
-        ord_val_list = self._sort_by_plate_filename(val_list)
-        ord_test_list = self._sort_by_plate_filename(test_list)
-
-        # save yolo format patches here
-        for idx, k in enumerate(ord_train_list):
-            self.__save_yolo_format(idx, ord_train_list[k], "train", self.dataset_config.image_size)
-        for idx, k in enumerate(ord_val_list):
-            self.__save_yolo_format(idx, ord_val_list[k], "val", self.dataset_config.image_size)
-        for idx, k in enumerate(ord_test_list):
-            self.__save_yolo_format(idx, ord_test_list[k], "test", self.dataset_config.image_size)
-
-        # TODO self.subsets_dict: SubsetsDict = self.split_dataset(self.dataset_config.dataset_splits)
-        
-        super().__init__()
-
-    def __getitem__(self, idx):
-        image_batch = self._load_batch_patch(self.patches_with_defects[idx])
-        label_batch = self._load_batch_defect_labels(self.patches_with_defects[idx])
-        
-        return image_batch, label_batch
-    
-    def __len__(self):
-        return len(self.patches_with_defects)
-
-    def _load_batch_patch(self, patch: Patch) -> torch.Tensor:
-        full_img_pil_1 = Image.open(patch.plate_paths.ch_1).convert("L")
-        img_pil_1 = full_img_pil_1.crop((patch.start_w, patch.start_h, patch.start_w + patch.w, patch.start_h + patch.h))
-        del full_img_pil_1
-        
-        full_img_pil_2 = Image.open(patch.plate_paths.ch_2).convert("L")
-        img_pil_2 = full_img_pil_2.crop((patch.start_w, patch.start_h, patch.start_w + patch.w, patch.start_h + patch.h))
-        del full_img_pil_2
-
-        # rescale [0-255](int) to [0-1](float)
-        img_1 = transforms.ToTensor()(img_pil_1)
-        img_2 = transforms.ToTensor()(img_pil_2)
-
-        img = torch.stack([img_1, img_2], dim=0).squeeze(1)
-
-        # if use only one channel for test
-        if self.TEST_ONE:
-            del img
-            img = img_1.clone()
-
-        # normalize
-        img = CustomDataset.normalize_or_identity(self.dataset_config)(img)
-
-        return img # type: ignore
-    
-    def _load_batch_defect_labels(self, patch: Patch):
-        # TODO FIX pytorch does not like variable length lists as labels
-        return patch.defects
-
-    def parse_csv(self, filt: Optional[List[str]]=None) -> pd.DataFrame:
+    def parse_csv(self, available_images: List[str], filt: Optional[List[str]]=None) -> pd.DataFrame:
         """Read bounding boxes csv (parser)
         
         Reads the bounding_boxes.csv file correctly:
@@ -372,42 +300,16 @@ class GlassPlate(TorchDataset):
 
             df = df.loc[df[_CH.COL_CLASS_KEY].isin(selected_columns)]
 
+        # check if df contains entries for filenames (image plates) that are not available on the device
+        missing = set(df[_CH.COL_IMG_NAME].to_list()) - set(available_images)
+        if not missing == set():
+            Logger.instance().warning(f"The following plates will be removed from df since not available: {missing}")
+            df = df[~df[_CH.COL_IMG_NAME].isin(missing)]
+
         return self.order_by(df, filt)
 
     def get_defect_class(self, df: pd.DataFrame):
         return set(df[_CH.COL_CLASS_KEY].unique())
-    
-    def _train_test_split(self, ratios: List[float]) -> Tuple[List[Patch], List[Patch], List[Patch]]:
-        # mandatory to have defects in train, so pass `self.patches_with_defects` or a subset containing defects
-        filt = list(SinglePlate.idx_to_label.values())
-        n_defect: dict = self.n_defect_per_class(self.patches_with_defects, filt=filt)
-        
-        ds_len = reduce(lambda a, b: a+b, list(n_defect.values()))
-        splits = { k: [
-                int(v * ratios[0]),
-                int(v * ratios[1]),
-                v-(int(v * ratios[0]) + int(v * ratios[1]))
-            ] for k, v in n_defect.items() 
-        }
-
-        train_list_defect: List[Patch] = list()
-        val_list_defect: List[Patch] = list()
-        test_list_defect: List[Patch] = list()
-        for k, v in splits.items():
-            count_val = 0
-            count_test = 0
-            for patch in self.patches_with_defects:
-                if any(map(lambda x: x.defect_class == k, patch.defects)):
-                    if count_val < v[1]:
-                        val_list_defect.append(patch)
-                        count_val += 1
-                    elif count_test < v[2]:
-                        test_list_defect.append(patch)
-                        count_test += 1
-                    else:
-                        train_list_defect.append(patch)
-
-        return train_list_defect, val_list_defect, test_list_defect
 
     def n_defect_per_class(self, patches_w_defects: List[Patch], filt: Optional[List[str]]) -> dict:
         filter_patches = patches_w_defects.copy()
@@ -471,11 +373,143 @@ class GlassPlate(TorchDataset):
             
         Logger.instance().debug(f"sort by: {order_by}")
         return df.sort_values(order_by, ascending=[True] * len(order_by))
-    
+
     @staticmethod
-    def __save_yolo_format(plate_idx: int, plate_patch_list: List[Patch], split: str, img_size: int=640):
-        parent_plate_ch1 = plate_patch_list[0].plate_paths.ch_1
-        parent_plate_ch2 = plate_patch_list[0].plate_paths.ch_2
+    def sort_by_plate_filename(patch_list: List[Patch]):
+        objs = patch_list.copy()
+        objs.sort(key=lambda x: x.plate_paths["ch_1"])
+        return { key: list(group) for key, group in groupby(objs, key=lambda x: x.plate_paths["ch_1"]) }
+    
+
+class GlassPlateTrainYolo(GlassPlate):
+
+    def __init__(self, dataset_config: DatasetConfig):
+        super().__init__(dataset_config)
+
+        # find defects in each plate
+        self.patches_with_defects = self.locate_defects_all_plates(self.plate_name_set)
+    
+        # split train/val/test
+        train_list, val_list, test_list = self.train_test_split(self.patches_with_defects)
+
+        # save yolo format patches here
+        for idx, k in enumerate(train_list):
+            self.save_patches_yolo_format(idx, train_list[k], "train")
+        for idx, k in enumerate(val_list):
+            self.save_patches_yolo_format(idx, val_list[k], "val")
+        for idx, k in enumerate(test_list):
+            self.save_patches_yolo_format(idx, test_list[k], "test")
+
+    def locate_defects_all_plates(self, plate_name_set: set[str]) -> List[Patch]:
+        """Call locate defect for each plate
+
+        This method is a pain in the arse because when you instantiate SinglePlate, the sliding window method that
+        creates patches for the whole plate is automatically called. It wouldn't be so bad, it could be called later,
+        but the main problem is that I would eventually need to store a collection of plates with the corresponding
+        `patch_list` and `patch_list_defect`: this would mean storing too much information and I have already
+        experienced a sort of program suicide due to out-of-memory. Hence, the only way to make things faster is to
+        instantiate a new plate for every name and append only the defective patches when needed. The memory will be
+        eventually cleared at the end of each loop iteration (with respect to the whole plate, I mean). 
+        
+        Args:
+            plate_name_set (set[str]): names of the images without channel info ("_1.png", "_2.png")
+
+        Returns:
+            List[Patch]
+        """
+        
+        # group df for same plate (names)
+        df = self._df.copy()
+        df["plate_group"] = df[_CH.COL_IMG_NAME].str.extract(r'(.+)_')[0]
+        df = df.groupby("plate_group").agg(list).reset_index()
+        
+        patches_with_defects = []
+        for plate_name in plate_name_set:
+            plate = SinglePlate(f"{plate_name}_1.png", f"{plate_name}_2.png")
+            filtered_df = df[df[_CH.COL_IMG_NAME].apply(lambda x: all(item in x for item in plate.tolist()))]
+            if filtered_df.empty: continue
+            filtered_df = filtered_df.explode(list(self._df.columns), ignore_index=True).drop(columns=["plate_group"])
+            plate.locate_defects(filtered_df, filt=list(SinglePlate.label_to_idx.keys()))
+            patches_with_defects.extend(plate.patch_list_defects)
+
+        Logger.instance().debug(f"{len(patches_with_defects)} patches contain defects ({list(SinglePlate.label_to_idx.keys())}).")
+        return patches_with_defects
+
+    def train_test_split(self, defective_patches: List[Patch]) -> Tuple[dict, dict, dict]:
+        """Split in train/val/test for YOLO
+        
+        Each split contain the exact number (in percentage) of defects defined in the config.json file, for each defect
+        class. The list is finally ordered because reading random patches would means to load the whole image for
+        every single patch (too slow). Thus, plate image is read once, then all the defective patches for each plate
+        are cropped.
+
+        Args:
+            defective_patches (List[Patch]): ensure that each patch contains defects
+
+        Returns:
+            train, val, test (Tuple[dict, dict, dict]): key -> plate name, val -> list of patches
+        """
+
+        # check settings
+        if len(self.dataset_config.dataset_splits) < 3:
+            raise ValueError(f"YOLO need train/val/test splits: set config to have three splits.")
+        
+        # check every patch has defects
+        if any(map(lambda x: x.defects is None, defective_patches)):
+            raise ValueError("Must provide patches with defects.")
+        
+        ratios = self.dataset_config.dataset_splits.copy()
+        filt = list(SinglePlate.idx_to_label.values())
+        n_defect: dict = self.n_defect_per_class(defective_patches, filt=filt)
+        
+        ds_len = reduce(lambda a, b: a+b, list(n_defect.values()))
+        splits = { k: [
+                int(v * ratios[0]),
+                int(v * ratios[1]),
+                v-(int(v * ratios[0]) + int(v * ratios[1]))
+            ] for k, v in n_defect.items() 
+        }
+
+        train_list_defect: List[Patch] = list()
+        val_list_defect: List[Patch] = list()
+        test_list_defect: List[Patch] = list()
+
+        for k, v in splits.items():
+            count_val = 0
+            count_test = 0
+            for patch in defective_patches:
+                if any(map(lambda x: x.defect_class == k, patch.defects)):
+                    if count_val < v[1]:
+                        val_list_defect.append(patch)
+                        count_val += 1
+                    elif count_test < v[2]:
+                        test_list_defect.append(patch)
+                        count_test += 1
+                    else:
+                        train_list_defect.append(patch)
+
+        ord_train_list = self.sort_by_plate_filename(train_list_defect)
+        ord_val_list = self.sort_by_plate_filename(val_list_defect)
+        ord_test_list = self.sort_by_plate_filename(test_list_defect)
+
+        return ord_train_list, ord_val_list, ord_test_list
+
+    @staticmethod
+    def save_patches_yolo_format(plate_idx: int, plate_patch_list: List[Patch], split: str):
+        """Save for YOLO training
+
+        In this case, we consider that all the patches have defects.
+
+        Args:
+            plate_idx (int)
+            plate_patch_list (List[Patch]): `SinglePlate::patch_list_defects`
+            split (str): "train", "val", "test"
+        """
+
+        img_size = SinglePlate.UPSCALE
+
+        parent_plate_ch1 = plate_patch_list[0].plate_paths["ch_1"]
+        parent_plate_ch2 = plate_patch_list[0].plate_paths["ch_2"]
 
         image_folder_path = os.path.join(os.getcwd(), "output", split, "images")
         label_folder_path = os.path.join(os.getcwd(), "output", split, "labels")
@@ -489,53 +523,32 @@ class GlassPlate(TorchDataset):
 
         for patch_idx, patch in enumerate(plate_patch_list):
             patch_basename = f"plate_{plate_idx}_patch_{patch_idx}"
-            # check if a patch has defects (safe check)
-            if not patch.defects:
-                Logger.instance().warning(f"No defects in selected patch")
-                continue
+            patch_filename = os.path.join(image_folder_path, f"{patch_basename}.png")
+            
+            # image crop
+            crop_1 = img_1.crop((patch.start_w, patch.start_h, patch.start_w + patch.w, patch.start_h + patch.h))
+            crop_2 = img_2.crop((patch.start_w, patch.start_h, patch.start_w + patch.w, patch.start_h + patch.h))
+            
+            ## alpha channel
+            img_merge = Image.new("LA", crop_1.size)
+            img_merge.paste(crop_1, (0, 0))
+            img_merge.paste(crop_2, (0, 0), crop_2)
+            
+            ## RGB
+            # img_merge = Image.merge("RGB", (crop_1, crop_2, crop_2))
+            
+            (img_merge.resize((img_size, img_size), resample=Image.BILINEAR)).save(patch_filename)
 
-            # filter patches that have specific defects (SinglePlate class attributes)
-            filtered_defects = []
-            for d in patch.defects:
-                if d.defect_class in list(SinglePlate.label_to_idx.keys()):
-                    filtered_defects.append(d)
-
-            # if a patch has any of those specific defects, then save the image patch
-            if len(filtered_defects) > 0:
-                patch_filename = os.path.join(image_folder_path, f"{patch_basename}.png")
-                crop_1 = img_1.crop((patch.start_w, patch.start_h, patch.start_w + patch.w, patch.start_h + patch.h))
-                crop_2 = img_2.crop((patch.start_w, patch.start_h, patch.start_w + patch.w, patch.start_h + patch.h))
-                
-                ## alpha channel
-                img_merge = Image.new("LA", crop_1.size)
-                img_merge.paste(crop_1, (0, 0))
-                img_merge.paste(crop_2, (0, 0), crop_2)
-                
-                ## RGB
-                # img_merge = Image.merge("RGB", (crop_1, crop_2, crop_2))
-                
-                (img_merge.resize((img_size,img_size), resample=Image.BILINEAR)).save(patch_filename)
-        
-                # writing annotations
-                with open(os.path.join(label_folder_path, f"{patch_basename}.txt"), "a") as f:
-                    for didx, defect in enumerate(filtered_defects):
-                        x = float((defect.max_x + defect.min_x) / 2) / float(SinglePlate.PATCH_SIZE)
-                        y = float((defect.max_y + defect.min_y) / 2) / float(SinglePlate.PATCH_SIZE)
-                        w = float((defect.max_x - defect.min_x) / float(SinglePlate.PATCH_SIZE))
-                        h = float((defect.max_y - defect.min_y) / float(SinglePlate.PATCH_SIZE))
-                        line = f"{SinglePlate.label_to_idx[defect.defect_class]} {x} {y} {w} {h}"
-                        if didx == 0:
-                            f.writelines(line)
-                        else:
-                            f.writelines(f"\n{line}")
-
-    @staticmethod
-    def _sort_by_plate_filename(patch_list: List[Patch]):
-        objs = patch_list.copy()
-        objs.sort(key=lambda x: x.plate_paths.ch_1)
-        return { key: list(group) for key, group in groupby(objs, key=lambda x: x.plate_paths.ch_1) }
-
-    @staticmethod
-    def compute_mean_std(dataset: Union[CustomDataset, TorchDataset]) -> Tuple[torch.Tensor, torch.Tensor]:
-        mean, std = CustomDataset.compute_mean_std(dataset)
-        return mean, std
+            # writing annotations
+            with open(os.path.join(label_folder_path, f"{patch_basename}.txt"), "a") as f:
+                for didx, defect in enumerate(patch.defects):
+                    x = float((defect.max_x + defect.min_x) / 2) / float(SinglePlate.PATCH_SIZE)
+                    y = float((defect.max_y + defect.min_y) / 2) / float(SinglePlate.PATCH_SIZE)
+                    w = float((defect.max_x - defect.min_x) / float(SinglePlate.PATCH_SIZE))
+                    h = float((defect.max_y - defect.min_y) / float(SinglePlate.PATCH_SIZE))
+                    line = f"{SinglePlate.label_to_idx[defect.defect_class]} {x} {y} {w} {h}"
+                    if didx == 0:
+                        f.writelines(line)
+                    else:
+                        f.writelines(f"\n{line}")
+    
