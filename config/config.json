@@ -1,6 +1,6 @@
 {
     "dataset_path": "/media/lorenzo/M/datasets/dataset_opt",
-    "dataset_type": "opt_yolo_train",
+    "dataset_type": "opt_yolo_test",
     "dataset_splits": [
         0.7,
         0.1,

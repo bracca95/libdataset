@@ -5,6 +5,7 @@ import torch
 import pandas as pd
 
 from PIL import Image
+from PIL.Image import Image as PilImgType
 from glob import glob
 from functools import reduce
 from itertools import groupby
@@ -93,14 +94,19 @@ class SinglePlate:
         self.ch_1 = ch_1
         self.ch_2 = ch_2
 
-        self.patch_list = self.create_patch_list(patch_w=self.PATCH_SIZE, patch_h=self.PATCH_SIZE, stride=self.PATCH_STRIDE)
-        self.patch_list_defects: List[Patch] = list()
+        self.patch_list: List[Patch] = list()
 
     def tolist(self) -> List[str]:
         return [self.ch_1, self.ch_2]
     
     def to_platepaths(self) -> PlatePathsDict:
         return { "ch_1": self.ch_1, "ch_2": self.ch_2 }
+    
+    def read_full_img(self, mode: str="L") -> Tuple[PilImgType, PilImgType]:
+        img_1 = Image.open(self.ch_1).convert(mode)
+        img_2 = Image.open(self.ch_2).convert(mode)
+
+        return img_1, img_2
 
     def create_patch_list(self, patch_w: int, patch_h: int, stride: int) -> List[Patch]:
         """Create a list of patches for a single glass plate
@@ -122,7 +128,7 @@ class SinglePlate:
         img_w, img_h = Image.open(self.ch_1).size
         return self.sliding_window(self, img_w, img_h, patch_w, patch_h, stride)
     
-    def locate_defects(self, filtered_df: pd.DataFrame, filt: Optional[List[str]]):
+    def locate_defects(self, lookup_df: pd.DataFrame, filt: Optional[List[str]]):
         """Locate defects in the patch
 
         Starting from the world frame location, convert it to the body frame. Since there are two channels, which have
@@ -130,12 +136,17 @@ class SinglePlate:
         bound box for each two-channel image. Do this for every patch.
 
         Args:
-            filtered_df (pd.DataFrame): the dataframe grouped by defects for that specific plate.
+            lookup_df (pd.DataFrame): the dataframe grouped by defects for that specific plate.
             filt (Optional[List[str]]): classes to select. If None, use all defect classes
         """
 
+        if len(self.patch_list) == 0:
+            msg = f"Trying to locate defects, but patches have not been initialized yet."
+            Logger.instance().error(msg)
+            raise ValueError(msg)
+
         # wrap
-        for _, group in filtered_df.groupby(_CH.COL_ID_DEFECT):
+        for _, group in lookup_df.groupby(_CH.COL_ID_DEFECT):
             defect_id = group[_CH.COL_ID_DEFECT].tolist()[0]
             defect_class = group[_CH.COL_CLASS_KEY].tolist()[0]
 
@@ -166,7 +177,7 @@ class SinglePlate:
                 and defect_class in filt:
                     abs_bbox = Bbox(defect_class, bbox_min_x, bbox_max_x, bbox_min_y, bbox_max_y)
                     patch.map_defect_locally(abs_bbox)
-                    self.patch_list_defects.append(patch)
+                    break # do not add more than once: the same defect may be put in both train and test dataset
                     # debug: can save image here
     
     @staticmethod
@@ -249,9 +260,9 @@ class GlassPlate:
 
         # read csv by filtering classes and returning
         self._dataset_csv = "/media/lorenzo/M/datasets/dataset_opt/2.2_dataset_opt/bounding_boxes_new.csv"
-        self._df = self.parse_csv(self.all_dataset_images, filt=None)
+        self._df = self._parse_csv(self.all_dataset_images, filt=None)
 
-    def parse_csv(self, available_images: List[str], filt: Optional[List[str]]=None) -> pd.DataFrame:
+    def _parse_csv(self, available_images: List[str], filt: Optional[List[str]]=None) -> pd.DataFrame:
         """Read bounding boxes csv (parser)
         
         Reads the bounding_boxes.csv file correctly:
@@ -375,10 +386,25 @@ class GlassPlate:
         return df.sort_values(order_by, ascending=[True] * len(order_by))
 
     @staticmethod
-    def sort_by_plate_filename(patch_list: List[Patch]):
+    def sort_by_plate_filename(patch_list: List[Patch]) -> List[SinglePlate]:
         objs = patch_list.copy()
         objs.sort(key=lambda x: x.plate_paths["ch_1"])
-        return { key: list(group) for key, group in groupby(objs, key=lambda x: x.plate_paths["ch_1"]) }
+        
+        plate_list: List[SinglePlate] = list()
+        for key, group in groupby(objs, key=lambda x: x.plate_paths["ch_1"]):
+            plate_id = key.rsplit("_1.png")[0]
+            plate = SinglePlate(f"{plate_id}_1.png", f"{plate_id}_2.png")
+            plate.patch_list = list(group)
+            plate_list.append(plate)
+
+        return plate_list
+    
+    @staticmethod
+    def group_by_plate_ch1_ch2(_df: pd.DataFrame):
+        # group df for same plate (names)
+        df = _df.copy()
+        df["plate_group"] = df[_CH.COL_IMG_NAME].str.extract(r'(.+)_')[0]
+        return df.groupby("plate_group").agg(list).reset_index()
     
 
 class GlassPlateTrainYolo(GlassPlate):
@@ -393,23 +419,22 @@ class GlassPlateTrainYolo(GlassPlate):
         train_list, val_list, test_list = self.train_test_split(self.patches_with_defects)
 
         # save yolo format patches here
-        for idx, k in enumerate(train_list):
-            self.save_patches_yolo_format(idx, train_list[k], "train")
-        for idx, k in enumerate(val_list):
-            self.save_patches_yolo_format(idx, val_list[k], "val")
-        for idx, k in enumerate(test_list):
-            self.save_patches_yolo_format(idx, test_list[k], "test")
+        self.save_patches_yolo_format(train_list, "train")
+        self.save_patches_yolo_format(val_list, "val")
+        self.save_patches_yolo_format(test_list, "test")
 
-    def locate_defects_all_plates(self, plate_name_set: set[str]) -> List[Patch]:
+    def locate_defects_all_plates(self, plate_name_set: set[str]) -> List[SinglePlate]:
         """Call locate defect for each plate
 
         This method is a pain in the arse because when you instantiate SinglePlate, the sliding window method that
         creates patches for the whole plate is automatically called. It wouldn't be so bad, it could be called later,
         but the main problem is that I would eventually need to store a collection of plates with the corresponding
-        `patch_list` and `patch_list_defect`: this would mean storing too much information and I have already
-        experienced a sort of program suicide due to out-of-memory. Hence, the only way to make things faster is to
-        instantiate a new plate for every name and append only the defective patches when needed. The memory will be
-        eventually cleared at the end of each loop iteration (with respect to the whole plate, I mean). 
+        `patch_list`: this would mean storing too much information and I have already experienced a sort of program 
+        suicide due to out-of-memory. Hence, the only way to make things faster is to instantiate a new plate for 
+        every name and append only the defective patches when needed. The memory will be eventually cleared at the end 
+        of each loop iteration (with respect to the whole plate, I mean).
+        Since this is used only in the YOLO training part, we can filter out patches that do not contain defects, so
+        the final list `SinglePlate::patch_list` will embed only defective patches.
         
         Args:
             plate_name_set (set[str]): names of the images without channel info ("_1.png", "_2.png")
@@ -418,24 +443,37 @@ class GlassPlateTrainYolo(GlassPlate):
             List[Patch]
         """
         
-        # group df for same plate (names)
-        df = self._df.copy()
-        df["plate_group"] = df[_CH.COL_IMG_NAME].str.extract(r'(.+)_')[0]
-        df = df.groupby("plate_group").agg(list).reset_index()
+        df = GlassPlate.group_by_plate_ch1_ch2(self._df)
         
-        patches_with_defects = []
+        tot_defects = 0
+        plates_with_defects: List[SinglePlate] = list()
         for plate_name in plate_name_set:
+            # create a patch list (with sliding window for each plate)
             plate = SinglePlate(f"{plate_name}_1.png", f"{plate_name}_2.png")
-            filtered_df = df[df[_CH.COL_IMG_NAME].apply(lambda x: all(item in x for item in plate.tolist()))]
-            if filtered_df.empty: continue
-            filtered_df = filtered_df.explode(list(self._df.columns), ignore_index=True).drop(columns=["plate_group"])
-            plate.locate_defects(filtered_df, filt=list(SinglePlate.label_to_idx.keys()))
-            patches_with_defects.extend(plate.patch_list_defects)
+            plate.patch_list =  plate.create_patch_list(
+                patch_w=SinglePlate.PATCH_SIZE,
+                patch_h=SinglePlate.PATCH_SIZE,
+                stride=SinglePlate.PATCH_STRIDE
+            )
+            
+            # look for all the defects of that plate in the df
+            lookup_df = df[df[_CH.COL_IMG_NAME].apply(lambda x: all(item in x for item in plate.tolist()))]
+            if lookup_df.empty: continue
+            lookup_df = lookup_df.explode(list(self._df.columns), ignore_index=True).drop(columns=["plate_group"])
+            
+            # locate the defects in the patch list for the current plate
+            plate.locate_defects(lookup_df, filt=list(SinglePlate.label_to_idx.keys()))
+            
+            # override: filter out the original patch list and keep only the patches that actually contain defects
+            plate.patch_list = list(filter(lambda x: x.defects is not None, plate.patch_list))
+            if len(plate.patch_list) > 0:
+                tot_defects += len(plate.patch_list)
+                plates_with_defects.append(plate)
 
-        Logger.instance().debug(f"{len(patches_with_defects)} patches contain defects ({list(SinglePlate.label_to_idx.keys())}).")
-        return patches_with_defects
+        Logger.instance().debug(f"{tot_defects} patches contain defects ({list(SinglePlate.label_to_idx.keys())}).")
+        return plates_with_defects
 
-    def train_test_split(self, defective_patches: List[Patch]) -> Tuple[dict, dict, dict]:
+    def train_test_split(self, defective_plates: List[SinglePlate]) -> Tuple[List[SinglePlate], List[SinglePlate], List[SinglePlate]]:
         """Split in train/val/test for YOLO
         
         Each split contain the exact number (in percentage) of defects defined in the config.json file, for each defect
@@ -444,10 +482,10 @@ class GlassPlateTrainYolo(GlassPlate):
         are cropped.
 
         Args:
-            defective_patches (List[Patch]): ensure that each patch contains defects
+            defective_plates (List[SinglePlate]): this method must be called after defect localization
 
         Returns:
-            train, val, test (Tuple[dict, dict, dict]): key -> plate name, val -> list of patches
+            train, val, test (Tuple[List[SinglePlate], List[SinglePlate], List[SinglePlate]])
         """
 
         # check settings
@@ -455,6 +493,9 @@ class GlassPlateTrainYolo(GlassPlate):
             raise ValueError(f"YOLO need train/val/test splits: set config to have three splits.")
         
         # check every patch has defects
+        defective_patches: List[Patch] = list()
+        [defective_patches.extend(p.patch_list) for p in defective_plates]
+
         if any(map(lambda x: x.defects is None, defective_patches)):
             raise ValueError("Must provide patches with defects.")
         
@@ -493,9 +534,60 @@ class GlassPlateTrainYolo(GlassPlate):
         ord_test_list = self.sort_by_plate_filename(test_list_defect)
 
         return ord_train_list, ord_val_list, ord_test_list
+    
+    @staticmethod
+    def patch_to_pil(img_1: PilImgType, img_2:PilImgType, patch: Patch, img_size: int, mode: str="L") -> PilImgType:
+        """Return a patch as a PIL image type
+
+        Args:
+            img_1 (PilImgType): channel 1 (tb) for full plate
+            img_2 (PilImgType): channel 2 (td) for full plate
+            patch (Patch)
+            img_size (int): used for resizing to YOLO default format
+
+        Returns:
+            PilImgType
+        """
+        
+        # image crop
+        crop_1 = img_1.crop((patch.start_w, patch.start_h, patch.start_w + patch.w, patch.start_h + patch.h))
+        crop_2 = img_2.crop((patch.start_w, patch.start_h, patch.start_w + patch.w, patch.start_h + patch.h))
+        
+        if mode == "L":
+            ## alpha channel
+            img_merge = Image.new("LA", crop_1.size)
+            img_merge.paste(crop_1, (0, 0))
+            img_merge.paste(crop_2, (0, 0), crop_2)
+        else:
+            ## RGB
+            img_merge = Image.merge("RGB", (crop_1, crop_2, crop_2))
+
+        return img_merge.resize((img_size, img_size), resample=Image.BILINEAR)
+    
+    @staticmethod
+    def write_patch_annotations(patch: Patch, label_filename: str):
+        """Write annotations in YOLO format
+
+        Args:
+            patch (Patch)
+            label_filename (str)
+        """
+
+        with open(label_filename, "a") as f:
+            for didx, defect in enumerate(patch.defects):
+                x = float((defect.max_x + defect.min_x) / 2) / float(SinglePlate.PATCH_SIZE)
+                y = float((defect.max_y + defect.min_y) / 2) / float(SinglePlate.PATCH_SIZE)
+                w = float((defect.max_x - defect.min_x) / float(SinglePlate.PATCH_SIZE))
+                h = float((defect.max_y - defect.min_y) / float(SinglePlate.PATCH_SIZE))
+                line = f"{SinglePlate.label_to_idx[defect.defect_class]} {x} {y} {w} {h}"
+                if didx == 0:
+                    f.writelines(line)
+                else:
+                    f.writelines(f"\n{line}")
+
 
     @staticmethod
-    def save_patches_yolo_format(plate_idx: int, plate_patch_list: List[Patch], split: str):
+    def save_patches_yolo_format(plate_list: List[SinglePlate], split: str):
         """Save for YOLO training
 
         In this case, we consider that all the patches have defects.
@@ -507,48 +599,93 @@ class GlassPlateTrainYolo(GlassPlate):
         """
 
         img_size = SinglePlate.UPSCALE
-
-        parent_plate_ch1 = plate_patch_list[0].plate_paths["ch_1"]
-        parent_plate_ch2 = plate_patch_list[0].plate_paths["ch_2"]
-
         image_folder_path = os.path.join(os.getcwd(), "output", split, "images")
         label_folder_path = os.path.join(os.getcwd(), "output", split, "labels")
 
         if not os.path.exists(image_folder_path): os.makedirs(image_folder_path)
         if not os.path.exists(label_folder_path): os.makedirs(label_folder_path)
 
-        # save image file (.png)
-        img_1 = Image.open(parent_plate_ch1).convert("L")
-        img_2 = Image.open(parent_plate_ch2).convert("L")
+        for plate in plate_list:
+            img_1, img_2 = plate.read_full_img()
+            plate_id = os.path.basename(plate.ch_1.split("_1.png")[0])
 
-        for patch_idx, patch in enumerate(plate_patch_list):
-            patch_basename = f"plate_{plate_idx}_patch_{patch_idx}"
-            patch_filename = os.path.join(image_folder_path, f"{patch_basename}.png")
-            
-            # image crop
-            crop_1 = img_1.crop((patch.start_w, patch.start_h, patch.start_w + patch.w, patch.start_h + patch.h))
-            crop_2 = img_2.crop((patch.start_w, patch.start_h, patch.start_w + patch.w, patch.start_h + patch.h))
-            
-            ## alpha channel
-            img_merge = Image.new("LA", crop_1.size)
-            img_merge.paste(crop_1, (0, 0))
-            img_merge.paste(crop_2, (0, 0), crop_2)
-            
-            ## RGB
-            # img_merge = Image.merge("RGB", (crop_1, crop_2, crop_2))
-            
-            (img_merge.resize((img_size, img_size), resample=Image.BILINEAR)).save(patch_filename)
+            for patch_idx, patch in enumerate(plate.patch_list):
+                patch_basename = f"plate_{plate_id}_patch_{patch_idx}"
+                patch_filename = os.path.join(image_folder_path, f"{patch_basename}.png")
+                label_filename = os.path.join(label_folder_path, f"{patch_basename}.txt")
+                
+                # save image
+                patch_pil = GlassPlateTrainYolo.patch_to_pil(img_1, img_2, patch, img_size)
+                patch_pil.save(patch_filename)
 
-            # writing annotations
-            with open(os.path.join(label_folder_path, f"{patch_basename}.txt"), "a") as f:
-                for didx, defect in enumerate(patch.defects):
-                    x = float((defect.max_x + defect.min_x) / 2) / float(SinglePlate.PATCH_SIZE)
-                    y = float((defect.max_y + defect.min_y) / 2) / float(SinglePlate.PATCH_SIZE)
-                    w = float((defect.max_x - defect.min_x) / float(SinglePlate.PATCH_SIZE))
-                    h = float((defect.max_y - defect.min_y) / float(SinglePlate.PATCH_SIZE))
-                    line = f"{SinglePlate.label_to_idx[defect.defect_class]} {x} {y} {w} {h}"
-                    if didx == 0:
-                        f.writelines(line)
-                    else:
-                        f.writelines(f"\n{line}")
+                # writing annotations
+                GlassPlateTrainYolo.write_patch_annotations(patch, label_filename)
+
+
+class GlassPlateTestYolo(GlassPlate):
+
+    def __init__(self, dataset_config: DatasetConfig):
+        super().__init__(dataset_config)
     
+        self.filtered_plates = self._read_plate_file("test_plates.txt")
+
+    def _read_plate_file(self, path_to_txt: Optional[str]) -> List[SinglePlate]:
+        msg = f"Using all plates: the path {path_to_txt} does not exist. Create a `$PROJ/test_plates.txt` file"
+
+        # return all the plates if no txt file is specified
+        if path_to_txt is None:
+            Logger.instance().warning(f"Using all plates in test.")
+            return [SinglePlate(f"{name}_1.png", f"{name}_2.png") for name in self.plate_name_set]
+        
+        # return all the plates if no txt file is specified
+        try:
+            path_to_txt = Tools.validate_path(path_to_txt)
+        except ValueError as ve:
+            Logger.instance().warning(f"{ve.args}\n{msg}")
+            return [SinglePlate(f"{name}_1.png", f"{name}_2.png") for name in self.plate_name_set]
+        except FileNotFoundError as fnf:
+            Logger.instance().warning(f"{fnf.args}\n{msg}")
+            return [SinglePlate(f"{name}_1.png", f"{name}_2.png") for name in self.plate_name_set]
+        
+        with open(path_to_txt, "r") as f:
+            lines = [p.strip().replace("_1.png", "").replace("_2.png", "").replace(",", "").replace(";", "") for p in f]
+
+        filter_plate_names = set(lines) & self.plate_name_set
+        plates = [SinglePlate(f"{name}_1.png", f"{name}_2.png") for name in filter_plate_names]
+        
+        Logger.instance().warning(f"Filtering plates: {filter_plate_names}")
+        return plates
+
+    def analyze_plate(self, plate: SinglePlate):
+        if self.filtered_plates == set():
+            Logger.instance().debug("No plates in `$PROJ/test_plates.txt`. Add plates or remove the file to use all.")
+            return
+
+        df = GlassPlate.group_by_plate_ch1_ch2(self._df)
+        
+        # store all the patches in memory for a plate
+        plate.patch_list =  plate.create_patch_list(
+            patch_w=SinglePlate.PATCH_SIZE,
+            patch_h=SinglePlate.PATCH_SIZE,
+            stride=SinglePlate.PATCH_STRIDE
+        )
+        
+        # look up defect on the current plate
+        lookup_df = df[df[_CH.COL_IMG_NAME].apply(lambda x: all(item in x for item in plate.tolist()))]
+        if lookup_df.empty: return
+        lookup_df = lookup_df.explode(list(self._df.columns), ignore_index=True).drop(columns=["plate_group"])
+        
+        # # store also info about the defective patches on that plate and override
+        # plate.locate_defects(lookup_df, list(SinglePlate.label_to_idx.keys()))
+        # plate.patch_list = list(filter(lambda x: x.defects is not None, plate.patch_list))
+
+        # if len(plate.patch_list) == 0:
+        #     return
+        
+        img_1, img_2 = plate.read_full_img()
+        img_size = SinglePlate.UPSCALE
+
+        # use yield to return ALL the patches (list) for a plate. YOLO will have to manage one plate at a time
+        for patch in plate.patch_list:
+            img_pil = GlassPlateTrainYolo.patch_to_pil(img_1, img_2, patch, img_size)
+            yield img_pil
