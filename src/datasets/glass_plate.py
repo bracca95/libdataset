@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import os
-import torch
+import math
 import pandas as pd
 
 from PIL import Image
@@ -415,19 +415,36 @@ class GlassPlateTrainYolo(GlassPlate):
 
     def __init__(self, dataset_config: DatasetConfig):
         super().__init__(dataset_config)
+        self._check_existance()
+
+    def _check_existance(self):
+        subdirs = set(os.listdir(self.dataset_config.dataset_path))
+        if set(["train", "test", "val"]) <= subdirs:
+            if "data.yaml" not in subdirs:
+                msg = f"data.yaml not in {self.dataset_config.dataset_path}: add it there and run the program again."
+                Logger.instance().critical(msg)
+                raise FileNotFoundError(msg)
+
+            # should also check if those directories contain images tbf...
+            Logger.instance().debug(f"Dataset images found for train/test yolo :)")
+            return
+
+        ## if images have not been stored yet
+        Logger.instance().debug(f"Storing images at {self.dataset_config.dataset_path}. May take some time..")
 
         # find defects in each plate
-        self.patches_with_defects = self.locate_defects_all_plates(self.plate_name_set)
+        patches_with_defects = self._locate_defects_all_plates(self.plate_name_set)
     
         # split train/val/test
-        train_list, val_list, test_list = self.train_test_split(self.patches_with_defects)
+        train_list, val_list, test_list = self._train_test_split(patches_with_defects)
 
-        # save yolo format patches here
-        self.save_patches_yolo_format(train_list, "train")
-        self.save_patches_yolo_format(val_list, "val")
-        self.save_patches_yolo_format(test_list, "test")
+        # save yolo format patches
+        self._save_patches_yolo_format(train_list, "train")
+        self._save_patches_yolo_format(val_list, "val")
+        self._save_patches_yolo_format(test_list, "test")
 
-    def locate_defects_all_plates(self, plate_name_set: set[str]) -> List[SinglePlate]:
+
+    def _locate_defects_all_plates(self, plate_name_set: set[str]) -> List[SinglePlate]:
         """Call locate defect for each plate
 
         This method is a pain in the arse because when you instantiate SinglePlate, the sliding window method that
@@ -477,7 +494,7 @@ class GlassPlateTrainYolo(GlassPlate):
         Logger.instance().debug(f"{tot_defects} patches contain defects ({list(SinglePlate.label_to_idx.keys())}).")
         return plates_with_defects
 
-    def train_test_split(self, defective_plates: List[SinglePlate]) -> Tuple[List[SinglePlate], List[SinglePlate], List[SinglePlate]]:
+    def _train_test_split(self, defective_plates: List[SinglePlate]) -> Tuple[List[SinglePlate], List[SinglePlate], List[SinglePlate]]:
         """Split in train/val/test for YOLO
         
         Each split contain the exact number (in percentage) of defects defined in the config.json file, for each defect
@@ -538,7 +555,41 @@ class GlassPlateTrainYolo(GlassPlate):
         ord_test_list = self.sort_by_plate_filename(test_list_defect)
 
         return ord_train_list, ord_val_list, ord_test_list
-    
+
+    def _save_patches_yolo_format(self, plate_list: List[SinglePlate], split: str):
+        """Save for YOLO training
+
+        In this case, we consider that all the patches have defects.
+
+        Args:
+            plate_idx (int)
+            plate_patch_list (List[Patch]): `SinglePlate::patch_list_defects`
+            split (str): "train", "val", "test"
+        """
+
+        img_size = SinglePlate.UPSCALE
+        image_folder_path = os.path.join(self.dataset_config.dataset_path, split, "images")
+        label_folder_path = os.path.join(self.dataset_config.dataset_path, split, "labels")
+
+        if not os.path.exists(image_folder_path): os.makedirs(image_folder_path)
+        if not os.path.exists(label_folder_path): os.makedirs(label_folder_path)
+
+        for plate in plate_list:
+            img_1, img_2 = plate.read_full_img()
+            plate_id = os.path.basename(plate.ch_1.split("_1.png")[0])
+
+            for patch_idx, patch in enumerate(plate.patch_list):
+                patch_basename = f"plate_{plate_id}_patch_{patch_idx}"
+                patch_filename = os.path.join(image_folder_path, f"{patch_basename}.png")
+                label_filename = os.path.join(label_folder_path, f"{patch_basename}.txt")
+                
+                # save image
+                patch_pil = GlassPlateTrainYolo.patch_to_pil(img_1, img_2, patch, img_size)
+                patch_pil.save(patch_filename)
+
+                # writing annotations
+                GlassPlateTrainYolo.write_patch_annotations(patch, label_filename)
+
     @staticmethod
     def patch_to_pil(img_1: PilImgType, img_2:PilImgType, patch: Patch, img_size: int, mode: str="L") -> PilImgType:
         """Return a patch as a PIL image type
@@ -589,41 +640,20 @@ class GlassPlateTrainYolo(GlassPlate):
                 else:
                     f.writelines(f"\n{line}")
 
-
     @staticmethod
-    def save_patches_yolo_format(plate_list: List[SinglePlate], split: str):
-        """Save for YOLO training
-
-        In this case, we consider that all the patches have defects.
-
-        Args:
-            plate_idx (int)
-            plate_patch_list (List[Patch]): `SinglePlate::patch_list_defects`
-            split (str): "train", "val", "test"
-        """
-
-        img_size = SinglePlate.UPSCALE
-        image_folder_path = os.path.join(os.getcwd(), "output", split, "images")
-        label_folder_path = os.path.join(os.getcwd(), "output", split, "labels")
-
-        if not os.path.exists(image_folder_path): os.makedirs(image_folder_path)
-        if not os.path.exists(label_folder_path): os.makedirs(label_folder_path)
-
-        for plate in plate_list:
-            img_1, img_2 = plate.read_full_img()
-            plate_id = os.path.basename(plate.ch_1.split("_1.png")[0])
-
-            for patch_idx, patch in enumerate(plate.patch_list):
-                patch_basename = f"plate_{plate_id}_patch_{patch_idx}"
-                patch_filename = os.path.join(image_folder_path, f"{patch_basename}.png")
-                label_filename = os.path.join(label_folder_path, f"{patch_basename}.txt")
-                
-                # save image
-                patch_pil = GlassPlateTrainYolo.patch_to_pil(img_1, img_2, patch, img_size)
-                patch_pil.save(patch_filename)
-
-                # writing annotations
-                GlassPlateTrainYolo.write_patch_annotations(patch, label_filename)
+    def read_annotations_back(label_filename: str) -> Optional[List[Bbox]]:
+        defects = []
+        with open(label_filename, "r") as f:  
+            for line in f:
+                dc, x, y, w, h = line.strip().rsplit(" ", -1)
+                dc, x, y, w, h = (int(dc), float(x), float(y), float(w), float(h))
+                left = int(math.floor((x - w/2) * SinglePlate.PATCH_SIZE))
+                upper = int(math.floor((y - h/2) * SinglePlate.PATCH_SIZE))
+                right = int(math.ceil((x + w/2) * SinglePlate.PATCH_SIZE))
+                bottom = int(math.ceil((y + h/2) * SinglePlate.PATCH_SIZE))
+                bbox = Bbox(SinglePlate.idx_to_label[dc], left, right, upper, bottom)
+                defects.append(bbox)
+        return defects if len(defects) > 0 else None  
 
 
 class GlassPlateTestYolo(GlassPlate):

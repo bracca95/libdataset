@@ -2,7 +2,7 @@ from typing import Union
 from torch.utils.data import Dataset
 
 from .dataset import CustomDataset
-from .glass_plate import GlassPlateTrainYolo, GlassPlateTestYolo
+from .glass_plate import GlassPlate, GlassPlateTrainYolo, GlassPlateTestYolo
 from .defectviews import GlassOpt, GlassOptBckg, GlassOptTricky, GlassOptDouble, BubblePoint, QPlusV1, QPlusV2, QPlusDouble
 from .omniglot import CustomOmniglot
 from .miniimagenet import MiniImageNet
@@ -13,7 +13,7 @@ from ..utils.tools import Logger
 class DatasetBuilder:
 
     @staticmethod
-    def load_dataset(dataset_config: DatasetConfig) -> Union[CustomDataset, Dataset]:
+    def load_dataset(dataset_config: DatasetConfig) -> CustomDataset:
         if dataset_config.dataset_type == "opt6":
             Logger.instance().info("Loading dataset GlassOpt (type CustomDataset)")
             return GlassOpt(dataset_config)
@@ -44,7 +44,17 @@ class DatasetBuilder:
         elif dataset_config.dataset_type == "miniimagenet":
             Logger.instance().info("Loading dataset Mini Imagenet (type CustomDataset)")
             return MiniImageNet(dataset_config)
-        elif dataset_config.dataset_type == "opt_yolo_train":
+        else:
+            raise ValueError(
+                "values allowed: {`opt6`, `opt_bckg`, `opt_double` `binary`, `qplusv1`, `qplusv2`, " +
+                "`qplus_double` `omniglot`, `miniimagenet`, `opt_yolo_train`, `opt_yolo_test`} for dataset_type"
+            )
+        
+class YoloDatasetBuilder:
+
+    @staticmethod
+    def load_dataset(dataset_config: DatasetConfig) -> GlassPlate:
+        if dataset_config.dataset_type == "opt_yolo_train":
             Logger.instance().info("Loading dataset GlassPlateTrainYolo (type GlassPlate)")
             return GlassPlateTrainYolo(dataset_config)
         elif dataset_config.dataset_type == "opt_yolo_test":
@@ -52,6 +62,6 @@ class DatasetBuilder:
             return GlassPlateTestYolo(dataset_config)
         else:
             raise ValueError(
-                "values allowed: {`opt6`, `opt_bckg`, `opt_double` `binary`, `qplusv1`, `qplusv2`, " +
-                "`qplus_double` `omniglot`, `miniimagenet`, `opt_yolo_train`, `opt_yolo_test`} for dataset_type"
-            )
+            "values allowed: {`opt6`, `opt_bckg`, `opt_double` `binary`, `qplusv1`, `qplusv2`, " +
+            "`qplus_double` `omniglot`, `miniimagenet`, `opt_yolo_train`, `opt_yolo_test`} for dataset_type"
+        )

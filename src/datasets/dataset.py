@@ -168,7 +168,7 @@ class CustomDataset(ABC, Dataset):
         """
 
         if augment_func is None:
-            Logger.instance.debug("No augment function specified: return")
+            Logger.instance().debug("No augment function specified: return")
             return
         
         Logger.instance().debug("increasing the number of images...")
