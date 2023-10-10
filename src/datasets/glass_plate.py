@@ -128,7 +128,7 @@ class SinglePlate:
         img_w, img_h = Image.open(self.ch_1).size
         return self.sliding_window(self, img_w, img_h, patch_w, patch_h, stride)
     
-    def locate_defects(self, lookup_df: pd.DataFrame, filt: Optional[List[str]]):
+    def locate_defects(self, lookup_df: pd.DataFrame, filt: Optional[List[str]], inference: bool=False):
         """Locate defects in the patch
 
         Starting from the world frame location, convert it to the body frame. Since there are two channels, which have
@@ -138,6 +138,7 @@ class SinglePlate:
         Args:
             lookup_df (pd.DataFrame): the dataframe grouped by defects for that specific plate.
             filt (Optional[List[str]]): classes to select. If None, use all defect classes
+            inference (bool): should be True when testing yolo so that you won't lose any patches that contain defects
         """
 
         if len(self.patch_list) == 0:
@@ -177,7 +178,10 @@ class SinglePlate:
                 and defect_class in filt:
                     abs_bbox = Bbox(defect_class, bbox_min_x, bbox_max_x, bbox_min_y, bbox_max_y)
                     patch.map_defect_locally(abs_bbox)
-                    break # do not add more than once: the same defect may be put in both train and test dataset
+                    
+                    # during inference every defect that appears more than once must be included
+                    if not inference:
+                        break # during training, avoid putting it in both train and test dataset
                     # debug: can save image here
     
     @staticmethod
@@ -656,7 +660,7 @@ class GlassPlateTestYolo(GlassPlate):
         Logger.instance().warning(f"Filtering plates: {filter_plate_names}")
         return plates
 
-    def analyze_plate(self, plate: SinglePlate):
+    def analyze_plate(self, plate: SinglePlate, batch_size: int=16):
         if self.filtered_plates == set():
             Logger.instance().debug("No plates in `$PROJ/test_plates.txt`. Add plates or remove the file to use all.")
             return
@@ -675,17 +679,28 @@ class GlassPlateTestYolo(GlassPlate):
         if lookup_df.empty: return
         lookup_df = lookup_df.explode(list(self._df.columns), ignore_index=True).drop(columns=["plate_group"])
         
-        # # store also info about the defective patches on that plate and override
-        # plate.locate_defects(lookup_df, list(SinglePlate.label_to_idx.keys()))
+        # store also info about the defective patches on that plate and override
+        plate.locate_defects(lookup_df, list(SinglePlate.label_to_idx.keys()), inference=True)
+        
         # plate.patch_list = list(filter(lambda x: x.defects is not None, plate.patch_list))
-
         # if len(plate.patch_list) == 0:
         #     return
         
         img_1, img_2 = plate.read_full_img()
         img_size = SinglePlate.UPSCALE
 
+        batch_patch = []
+        batch_patch_pil = []
+
         # use yield to return ALL the patches (list) for a plate. YOLO will have to manage one plate at a time
         for patch in plate.patch_list:
             img_pil = GlassPlateTrainYolo.patch_to_pil(img_1, img_2, patch, img_size)
-            yield img_pil
+            batch_patch.append(patch)
+            batch_patch_pil.append(img_pil)
+            if len(batch_patch) == batch_size:
+                yield batch_patch, batch_patch_pil
+                batch_patch, batch_patch_pil = [], []
+
+        # If there are any remaining images in batch_images after the loop, yield them
+        if batch_patch:
+            yield batch_patch, batch_patch_pil
