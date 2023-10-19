@@ -95,7 +95,12 @@ class CustomDataset(ABC, Dataset):
         
         Wrap torch.utils.data.random_split with a TypedDict that includes:
         { 'train': torch.utils.data.Subset, 'val': torch.utils.data.Subset, 'test': torch.utils.data.Subset }
-        The validation subset is None if not required
+        The validation subset is None if not required.
+
+        This is not the best approach to use for few-shot learning, as it includes all the classes in all the splits.
+        We would like to have different classes for train/val/test splits instead. However, since the number of classes
+        for our glass dataset is very low, we train with all possibile combinations. 
+        Use fsl_split for proper FSL split.
 
         Args:
             split_ratios (List[float]=[.8]): if len == 1: train/test, if len == 3 train/val/test else exception
@@ -187,8 +192,9 @@ class CustomDataset(ABC, Dataset):
 
     @staticmethod
     def compute_mean_std(dataset: CustomDataset) -> Tuple[torch.Tensor, torch.Tensor]:
-        if "imagenet" in dataset.dataset_config.dataset_type:
-            Logger.instance().debug(f"Dataset type is {dataset.dataset_config.dataset_type}: imagenet mean/std selected")
+        ds_type = dataset.dataset_config.dataset_type
+        if "imagenet" in ds_type or "cub" in ds_type:
+            Logger.instance().debug(f"Dataset type is {ds_type}: imagenet mean/std selected")
             return torch.Tensor([0.485, 0.456, 0.406]), torch.Tensor([0.229, 0.224, 0.225])
 
         # https://discuss.pytorch.org/t/computing-the-mean-and-std-of-dataset/34949/31
@@ -242,6 +248,78 @@ class CustomDataset(ABC, Dataset):
                 return normalize
 
         return torch.nn.Identity()
+    
+    @staticmethod
+    def fsl_split(dataset: Dataset, label_list: List[int], n_classes: int, split_ratios: List[float]) -> SubsetsDict:
+        """Split based on the number of classes
+        
+        This function provides a better implementation for splitting a FSL dataset, so that the classes in 
+        train/val/test splits do not intersect. Call this method inside the overwritten version of split_dataset().
+
+        Args:
+            dataset (Dataset): the dataset to split
+            label_list (List[int]): all the labels of all the images
+            n_classes (int): the total number of classes of the dataset
+            split_ratios (List[float]): train/val/test split percentage
+        """
+
+        if len(split_ratios) == 1:
+            split_ratios = [split_ratios[0], 1.0 - split_ratios[0]]
+        if len(split_ratios) == 2 or len(split_ratios) > 3:
+            raise ValueError(f"split_ratios argument accepts either a list of 1 value (train,test) or 3 (train,val,test)")
+
+        shuffled_idxs = torch.randperm(n_classes)
+        split_points = [int(n_classes * ratio) for ratio in split_ratios]
+
+        # if no validation is used, set eof_split to 0 so that the last index starts with the end of train
+        if len(split_points) == 3:
+            eof_split = split_points[1]
+            classes_val = shuffled_idxs[split_points[0]:split_points[0] + split_points[1]]
+        else:
+            eof_split = 0
+            classes_val = []
+
+        # Split the numbers into two or three sets
+        classes_train = shuffled_idxs[:split_points[0]]
+        classes_test = shuffled_idxs[split_points[0] + eof_split:]
+
+        if not len(shuffled_idxs) == len(classes_train) + len(classes_val) + len(classes_test):
+            raise ValueError(f"The number of classes {shuffled_idxs} does not match the split.")
+        
+        # ## This should be faster but might be slow
+        # # Create a subset with only the desired classes
+        # subset_train_indices = [i for i in range(len(self)) if self[i][1] in classes_train]
+        # subset_train = Subset(self, subset_indices)
+
+        # get all class labels as tensor
+        class_labels = torch.LongTensor(label_list)
+
+        # Convert list splits to tensors
+        classes_train = torch.LongTensor(classes_train)
+        classes_val = torch.LongTensor(classes_val)
+        classes_test = torch.LongTensor(classes_test)
+
+        # Create a boolean mask where each element corresponds to whether the class label is in desired_classes
+        mask_train = torch.any(class_labels.unsqueeze(1) == classes_train, dim=1)
+        mask_val = torch.any(class_labels.unsqueeze(1) == classes_val, dim=1)
+        mask_test = torch.any(class_labels.unsqueeze(1) == classes_test, dim=1)
+
+        # Get the indices where the mask is True
+        subset_indices_train = torch.nonzero(mask_train).squeeze()
+        subset_indices_val = torch.nonzero(mask_val).squeeze()
+        subset_indices_test = torch.nonzero(mask_test).squeeze()
+        
+        if classes_val.numel() == 0:
+            val_set = None
+        else:
+            val_set = Subset(dataset, subset_indices_val.tolist())
+        
+        train_set = Subset(dataset, subset_indices_train.tolist())
+        test_set = Subset(dataset, subset_indices_test.tolist())
+
+        train_str, val_str, test_str = _GC.DEFAULT_SUBSETS
+
+        return { train_str: train_set, val_str: val_set, test_str: test_set }
     
     @staticmethod
     def save_sample_image_batch(dataset: CustomDataset, outfolder: str):
