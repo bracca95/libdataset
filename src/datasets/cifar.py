@@ -103,16 +103,23 @@ class CifarFs(CustomDataset):
            not len(class_test) == CifarFs.N_CLASSES_TEST:
             raise ValueError(f"Some class is missing in cifar-fs directory or it has been filtered.")
         
+        # get labels (int) that are in the train/val/test splits
         label_train = torch.LongTensor([self.label_to_idx[c] for c in class_train])
         label_val = torch.LongTensor([self.label_to_idx[c] for c in class_val])
         label_test = torch.LongTensor([self.label_to_idx[c] for c in class_test])
 
+        # find all the occurrences
         idxs_train = torch.where(torch.LongTensor(self.label_list).unsqueeze(0) == label_train.unsqueeze(1))[1]
         idxs_val = torch.where(torch.LongTensor(self.label_list).unsqueeze(0) == label_val.unsqueeze(1))[1]
         idxs_test = torch.where(torch.LongTensor(self.label_list).unsqueeze(0) == label_test.unsqueeze(1))[1]
 
+        # create subsets
+        subset_train = Subset(self, idxs_train.tolist())
+        subset_val = Subset(self, idxs_val.tolist())
+        subset_test = Subset(self, idxs_test.tolist())
+
         train_str, val_str, test_str = _CG.DEFAULT_SUBSETS
-        return { train_str: Subset(self, idxs_train), val_str: Subset(self, idxs_val), test_str: Subset(self, idxs_test) }   # type:ignore
+        return { train_str: subset_train, val_str: subset_val, test_str: subset_test }   # type:ignore
 
     def __expected_length(self) -> int:
         return (CifarFs.N_CLASSES_TRAIN + CifarFs.N_CLASSES_TEST + CifarFs.N_CLASSES_VAL) * CifarFs.N_IMG_PER_CLASS
