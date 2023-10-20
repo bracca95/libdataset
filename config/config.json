@@ -1,6 +1,6 @@
 {
-    "dataset_path": "/media/lorenzo/M/datasets/CUB/CUB_200_2011",
-    "dataset_type": "cub",
+    "dataset_path": "/media/lorenzo/M/datasets/cifar100",
+    "dataset_type": "cifar_fs",
     "dataset_splits": [
         0.7,
         0.0,

@@ -193,7 +193,7 @@ class CustomDataset(ABC, Dataset):
     @staticmethod
     def compute_mean_std(dataset: CustomDataset) -> Tuple[torch.Tensor, torch.Tensor]:
         ds_type = dataset.dataset_config.dataset_type
-        if "imagenet" in ds_type or "cub" in ds_type:
+        if "imagenet" in ds_type or "cub" in ds_type or "cifar_fs" in ds_type:
             Logger.instance().debug(f"Dataset type is {ds_type}: imagenet mean/std selected")
             return torch.Tensor([0.485, 0.456, 0.406]), torch.Tensor([0.229, 0.224, 0.225])
 
@@ -319,7 +319,7 @@ class CustomDataset(ABC, Dataset):
 
         train_str, val_str, test_str = _GC.DEFAULT_SUBSETS
 
-        return { train_str: train_set, val_str: val_set, test_str: test_set }
+        return { train_str: train_set, val_str: val_set, test_str: test_set }   # type: ignore
     
     @staticmethod
     def save_sample_image_batch(dataset: CustomDataset, outfolder: str):
