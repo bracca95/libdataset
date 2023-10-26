@@ -121,7 +121,7 @@ class GlassOpt(CustomDataset):
         # crop
         # augmented images are already square-shaped, do not crop!
         # scratches, breaks and marks are likely not to be square-shaped, so cropping will lose information
-        # CHECK: I could crop only bubbles, since they are the only ones that have to preserve proportions strictly
+        # check: I could crop only bubbles, since they are the only ones that have to preserve proportions strictly
         if self.dataset_aug_path not in path and not Tools.check_string(os.path.basename(path), self.NO_CROP, False, False):
             img_pil = Processing.crop_no_padding(img_pil, self.dataset_config.crop_size, path)
         
@@ -261,7 +261,7 @@ class GlassOptDouble(GlassOpt):
 
     idx_to_label = Tools.invert_dict(label_to_idx)
 
-    NO_CROP = list(label_to_idx.keys())  # ["scratch_heavy", "dirt"]
+    NO_CROP = ["scratch_heavy"] # list(label_to_idx.keys())  # ["scratch_heavy", "dirt"]
     split_name = staticmethod(lambda x: os.path.basename(x).rsplit("_did", 1)[0])
 
     # use only one channel (only for test purpose)
