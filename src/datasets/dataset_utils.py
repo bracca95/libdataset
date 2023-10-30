@@ -5,7 +5,7 @@ from .dataset import CustomDataset
 from .cub import Cub
 from .cifar import CifarFs
 from .glass_plate import GlassPlate, GlassPlateTrainYolo, GlassPlateTestYolo
-from .defectviews import GlassOpt, GlassOptBckg, GlassOptTricky, GlassOptDouble, BubblePoint, QPlusV1, QPlusV2, QPlusDouble
+from .defectviews import GlassOpt, GlassOptBckg, GlassOptTricky, GlassOptDouble, GlassOptDoubleInference, BubblePoint, QPlusV1, QPlusV2, QPlusDouble
 from .omniglot import CustomOmniglot
 from .miniimagenet import MiniImageNet
 from ..utils.config_parser import DatasetConfig
@@ -28,6 +28,9 @@ class DatasetBuilder:
         elif dataset_config.dataset_type == "opt_double":
             Logger.instance().info("Loading dataset GlassOptDouble (type GlassOpt)")
             return GlassOptDouble(dataset_config)
+        elif dataset_config.dataset_type == "opt_double_inference":
+            Logger.instance().info("Loading dataset GlassOptDoubleInference (type GlassOptDouble)")
+            return GlassOptDoubleInference(dataset_config)
         elif dataset_config.dataset_type == "qplus_double":
             Logger.instance().info("Loading dataset QPlusDouble (type GlassOptDouble)")
             return QPlusDouble(dataset_config)
@@ -54,9 +57,9 @@ class DatasetBuilder:
             return CifarFs(dataset_config)
         else:
             raise ValueError(
-                "values allowed: {`opt6`, `opt_bckg`, `opt_double` `binary`, `qplusv1`, `qplusv2`, " +
-                "`qplus_double` `omniglot`, `miniimagenet`, `opt_yolo_train`, `opt_yolo_test`, `cub`, `cifar_fs`} " +
-                "for dataset_type"
+                "values allowed: {`opt6`, `opt_bckg`, `opt_double`, `opt_double_inference`, `binary`, `qplusv1`, " +
+                "`qplusv2`, `qplus_double`, `omniglot`, `miniimagenet`, `opt_yolo_train`, `opt_yolo_test`, `cub`, " +
+                "`cifar_fs`} for dataset_type"
             )
         
 class YoloDatasetBuilder:

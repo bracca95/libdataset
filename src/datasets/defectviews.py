@@ -289,6 +289,11 @@ class GlassOptDouble(GlassOpt):
         img_pil_1 = Image.open(path).convert("L")
         img_pil_2 = Image.open(path_2).convert("L")
 
+        # # DEBUG - may need to save test images for further tests
+        # root = "/media/lorenzo/M/datasets/dataset_opt/2.2_dataset_opt/dmx_2c/test_samples_1"
+        # img_pil_1.save(os.path.join(root, os.path.basename(path)))
+        # img_pil_2.save(os.path.join(root, os.path.basename(path_2)))
+
         # crop
         if not Tools.check_string(os.path.basename(path), self.NO_CROP, False, False):
             img_pil_1 = Processing.crop_no_padding(img_pil_1, self.dataset_config.crop_size, path)
@@ -313,6 +318,19 @@ class GlassOptDouble(GlassOpt):
         img = self.normalize_or_identity(self.dataset_config)(img)
 
         return img # type: ignore
+    
+
+class GlassOptDoubleInference(GlassOptDouble):
+    """OPT with two channels. Use only for precise inference"""
+
+    def __init__(self, dataset_config: DatasetConfig):
+        super().__init__(dataset_config)
+
+    def __getitem__(self, index):
+        curr_img_batch = self.image_list[index]
+        curr_label_batch = self.label_list[index]
+        
+        return self.load_image(curr_img_batch), curr_label_batch, curr_img_batch
     
 
 class QPlusDouble(GlassOptDouble):
