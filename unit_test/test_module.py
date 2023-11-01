@@ -8,7 +8,7 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 project_root = os.path.abspath(os.path.dirname(os.path.dirname(current_dir)))
 sys.path.insert(0, project_root)
 
-from glass_defect_dataset.src.datasets.dataset_utils import DatasetBuilder
+from glass_defect_dataset.src.datasets.dataset_utils import DatasetBuilder, YoloDatasetBuilder
 from glass_defect_dataset.src.utils.config_parser import read_from_json, write_to_json
 from glass_defect_dataset.src.utils.tools import Logger
 
@@ -29,7 +29,12 @@ if __name__=="__main__":
         sys.exit(-1)
 
     try:
-        dataset = DatasetBuilder.load_dataset(config)
+        # check if YOLO
+        if "yolo" in config.dataset_type:
+            dataset = YoloDatasetBuilder.load_dataset(config)
+            sys.exit(0)
+        else:
+            dataset = DatasetBuilder.load_dataset(config)
     except ValueError as ve:
         Logger.instance().critical(ve.args)
         sys.exit(-1)

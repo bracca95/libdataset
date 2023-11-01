@@ -367,7 +367,7 @@ class QPlusDouble(GlassOptDouble):
 
     idx_to_label = Tools.invert_dict(label_to_idx)
 
-    NO_CROP = list(label_to_idx.keys()) # ["scratch_heavy", "dirt"]
+    NO_CROP = ["scratch_heavy"] # list(label_to_idx.keys()) # ["scratch_heavy", "dirt"]
     split_name = staticmethod(lambda x: os.path.basename(x).rsplit("_did", 1)[0])
 
     # use only one channel (only for test purpose)

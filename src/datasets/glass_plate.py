@@ -152,9 +152,10 @@ class SinglePlate:
             defect_class = group[_CH.COL_CLASS_KEY].tolist()[0]
 
             # skip
-            if defect_class is not None and defect_class not in filt: 
-                Logger.instance().info(f"skipping defect class {defect_class}: not included in {filt}")
-                continue
+            if defect_class is not None and filt is not None:
+                if defect_class not in filt: 
+                    Logger.instance().info(f"skipping defect class {defect_class}: not included in {filt}")
+                    continue
             
             bbox_min_x = min(group[_CH.COL_BBOX_MIN_X])
             bbox_max_x = max(group[_CH.COL_BBOX_MAX_X])
@@ -230,23 +231,43 @@ class SinglePlate:
         crop.save("output/patch.png")
 
     @staticmethod
-    def __save_exact_defect(defect_id: int, patch: Patch):
+    def __save_exact_defect(defect_id: int, patch: Patch, margin: int):
         # call this in SinglePlate::locate_defects
         img_1 = Image.open(patch.plate_paths["ch_1"]).convert("L")
         img_2 = Image.open(patch.plate_paths["ch_2"]).convert("L")
 
         patch_coords = (patch.start_w, patch.start_h, patch.start_w + patch.w, patch.start_h + patch.h)
-        defect_coords = (patch.defects[0].min_x, patch.defects[0].min_y, patch.defects[0].max_x, patch.defects[0].max_y)
-        
+
+        if margin == 0:
+            defect_coords = (patch.defects[0].min_x, patch.defects[0].min_y, patch.defects[0].max_x, patch.defects[0].max_y)
+        else:
+            cx = (patch.defects[0].max_x + patch.defects[0].min_x) // 2
+            cy = (patch.defects[0].max_y + patch.defects[0].min_y) // 2
+            side = max((patch.defects[0].max_x - patch.defects[0].min_x), (patch.defects[0].max_y - patch.defects[0].min_y))
+            min_x = cx - (side // 2) - margin
+            min_y = cy - (side // 2) - margin
+            max_x = cx + (side // 2) + margin
+            max_y = cy + (side // 2) + margin
+
+            if min_x < 0 or min_y < 0 or max_x > patch.w or max_y > patch.h:
+                Logger.instance().warning(f"cannot fit defect into patch")
+                return
+            
+            defect_coords = (min_x, min_y, max_x, max_y)
+
         patch_1 = img_1.crop(patch_coords)
         patch_2 = img_2.crop(patch_coords)
 
         defect_1 = patch_1.crop(defect_coords)
         defect_2 = patch_2.crop(defect_coords)
 
+        out_dir = "/media/lorenzo/M/datasets/dmx/dataset_opt/2.2_dataset_opt_bb"
+        defect_vid_1 = f"{patch.defects[0].defect_class}_did_{defect_id}_vid_1.png"
+        defect_vid_2 = f"{patch.defects[0].defect_class}_did_{defect_id}_vid_2.png"
+
         try:
-            defect_1.save(f"output/{patch.defects[0].defect_class}_did_{defect_id}_vid_1.png")
-            defect_2.save(f"output/{patch.defects[0].defect_class}_did_{defect_id}_vid_2.png")
+            defect_1.save(os.path.join(out_dir, defect_vid_1))
+            defect_2.save(os.path.join(out_dir, defect_vid_2))
         except SystemError:
             Logger.instance().error(f"There is an error in the bounding box, check values: {patch.defects[0]}")
         except AttributeError:
@@ -263,7 +284,7 @@ class GlassPlate:
         self.plate_name_set = set(map(lambda x: x.rsplit("_", 1)[0], self.all_dataset_images))
 
         # read csv by filtering classes and returning
-        self._dataset_csv = "/media/lorenzo/M/datasets/dataset_opt/2.2_dataset_opt/bounding_boxes_new.csv"
+        self._dataset_csv = "/media/lorenzo/M/datasets/dmx/dataset_opt/2.2_dataset_opt/bounding_boxes_new.csv"
         self._df = self._parse_csv(self.all_dataset_images, filt=None)
 
     def _parse_csv(self, available_images: List[str], filt: Optional[List[str]]=None) -> pd.DataFrame:

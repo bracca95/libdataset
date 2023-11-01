@@ -1,6 +1,6 @@
 {
-    "dataset_path": "/media/lorenzo/M/datasets/cifar100",
-    "dataset_type": "cifar_fs",
+    "dataset_path": "/media/lorenzo/M/datasets/dmx/dataset_opt/",
+    "dataset_type": "opt_yolo_train",
     "dataset_splits": [
         0.7,
         0.0,
