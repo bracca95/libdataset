@@ -9,6 +9,7 @@ output/
 .DS_Store
 *.log
 processed_json.json
+nohup.out
 
 # extensions
 *.txt

@@ -22,6 +22,15 @@ from ...config.consts import General as _CG
 from ...config.consts import BboxFileHeader as _CH
 
 
+class SaveDefects:
+    active = False
+    p_size = 640
+    p_stride = 600
+    out_dir = "/media/lorenzo/M/datasets/dmx/dmx_2c/november/unclass_other"
+    csv_relative_path = "2.4_dataset_opt/unclassified/bounding_boxes.csv"
+    filt_class = ["bubble_small", "dirt_td", "inclusion", "point_td", "scratch", "det_failed", "no_defect", "unclassified"]
+
+
 @dataclass
 class Bbox:
     defect_class: str
@@ -80,8 +89,8 @@ class Patch:
 class SinglePlate:
     """Single glass plate class"""
 
-    PATCH_SIZE = 60
-    PATCH_STRIDE = 50
+    PATCH_SIZE = 60 if not SaveDefects.active else SaveDefects.p_size
+    PATCH_STRIDE = 50 if not SaveDefects.active else SaveDefects.p_stride
     UPSCALE = 640
 
     idx_to_label = {
@@ -179,11 +188,13 @@ class SinglePlate:
                 and defect_class in filt:
                     abs_bbox = Bbox(defect_class, bbox_min_x, bbox_max_x, bbox_min_y, bbox_max_y)
                     patch.map_defect_locally(abs_bbox)
+
+                    if SaveDefects.active:
+                        self.__save_exact_defect(defect_id, patch, 5)
                     
                     # during inference every defect that appears more than once must be included
                     if not inference:
                         break # during training, avoid putting it in both train and test dataset
-                    # debug: can save image here
     
     @staticmethod
     def sliding_window(plate: SinglePlate, img_w: int, img_h: int, patch_w: int, patch_h: int, stride: int) -> List[Patch]:
@@ -261,7 +272,7 @@ class SinglePlate:
         defect_1 = patch_1.crop(defect_coords)
         defect_2 = patch_2.crop(defect_coords)
 
-        out_dir = "/media/lorenzo/M/datasets/dmx/dataset_opt/2.2_dataset_opt_bb"
+        out_dir = SaveDefects.out_dir
         defect_vid_1 = f"{patch.defects[0].defect_class}_did_{defect_id}_vid_1.png"
         defect_vid_2 = f"{patch.defects[0].defect_class}_did_{defect_id}_vid_2.png"
 
@@ -284,7 +295,10 @@ class GlassPlate:
         self.plate_name_set = set(map(lambda x: x.rsplit("_", 1)[0], self.all_dataset_images))
 
         # read csv by filtering classes and returning
-        self._dataset_csv = "/media/lorenzo/M/datasets/dmx/dataset_opt/2.2_dataset_opt/bounding_boxes_new.csv"
+        csv_relative_path = "2.4_dataset_opt/riclassified/bounding_boxes.csv"
+        if SaveDefects.active:
+            csv_relative_path = SaveDefects.csv_relative_path
+        self._dataset_csv = os.path.join(self.dataset_config.dataset_path, csv_relative_path)
         self._df = self._parse_csv(self.all_dataset_images, filt=None)
 
     def _parse_csv(self, available_images: List[str], filt: Optional[List[str]]=None) -> pd.DataFrame:
@@ -456,13 +470,14 @@ class GlassPlateTrainYolo(GlassPlate):
         # find defects in each plate
         patches_with_defects = self._locate_defects_all_plates(self.plate_name_set)
     
-        # split train/val/test
-        train_list, val_list, test_list = self._train_test_split(patches_with_defects)
+        if not SaveDefects.active:
+            # split train/val/test
+            train_list, val_list, test_list = self._train_test_split(patches_with_defects)
 
-        # save yolo format patches
-        self._save_patches_yolo_format(train_list, "train")
-        self._save_patches_yolo_format(val_list, "val")
-        self._save_patches_yolo_format(test_list, "test")
+            # save yolo format patches
+            self._save_patches_yolo_format(train_list, "train")
+            self._save_patches_yolo_format(val_list, "val")
+            self._save_patches_yolo_format(test_list, "test")
 
 
     def _locate_defects_all_plates(self, plate_name_set: set[str]) -> List[SinglePlate]:
@@ -504,7 +519,8 @@ class GlassPlateTrainYolo(GlassPlate):
             lookup_df = lookup_df.explode(list(self._df.columns), ignore_index=True).drop(columns=["plate_group"])
             
             # locate the defects in the patch list for the current plate
-            plate.locate_defects(lookup_df, filt=list(SinglePlate.label_to_idx.keys()))
+            filters = SaveDefects.filt_class if SaveDefects.active else list(SinglePlate.label_to_idx.keys())
+            plate.locate_defects(lookup_df, filt=filters)
             
             # override: filter out the original patch list and keep only the patches that actually contain defects
             plate.patch_list = list(filter(lambda x: x.defects is not None, plate.patch_list))
