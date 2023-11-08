@@ -2,43 +2,19 @@ from __future__ import annotations
 
 import os
 import torch
-import random
 
 from PIL import Image
 from PIL.Image import Image as PilImgType
-from abc import ABC, abstractmethod, abstractproperty
+from abc import abstractmethod, abstractproperty
 from typing import Optional, List, Tuple, Callable
-from dataclasses import dataclass
-from torch.utils.data import Dataset, DataLoader, Subset, random_split
-from torch.utils.data import Subset
+from torch.utils.data import Dataset
 from torchvision.transforms import transforms
 
 from ..dataset import DatasetWrapper
 from ...imgproc import Processing
 from ...utils.tools import Tools, Logger
 from ...utils.config_parser import DatasetConfig
-from ....config.consts import SubsetsDict
 from ....config.consts import General as _CG
-
-
-@dataclass
-class SubsetInfo:
-    """SubsetInfo dataclass
-
-    The aim of this class is to wrap the output of torch.utils.data.random_split, so that it contains the information
-    related to the number of samples that belong to the split subsets. If you are creating your own dataset and then
-    you want to use pytorch's random_split method, this is the way to go not to lose information. Mind that subset
-    is a tuple containing THE WHOLE dataset and the indexes of the values that are in the subset.
-
-    name (str): name of the split set { 'train', 'val', 'test' }
-    info_dict (dict): dict with (key, val) = (class name, number of instances per class)
-
-    SeeAlso:
-        [PyTorch's Subset documentation](https://pytorch.org/docs/stable/data.html#torch.utils.data.Subset)
-    """
-    
-    name: str
-    info_dict: dict
 
 
 class DatasetLauncher(Dataset):
@@ -49,7 +25,7 @@ class DatasetLauncher(Dataset):
         self.label_list = label_list
         self.load_img_callback = load_img_callback
 
-        self.dataset_info: Optional[SubsetInfo] = None
+        self.dataset_info: Optional[dict] = None
 
     def __getitem__(self, index):
         curr_img_batch = self.image_list[index]
@@ -60,9 +36,12 @@ class DatasetLauncher(Dataset):
     def __len__(self):
         return len(self.label_list)
 
-    def set_info(self, split_name: str, info_dict: dict):
-        Logger.instance().debug(f"{split_name}: {info_dict}")
-        self.dataset_info = SubsetInfo(split_name, info_dict)
+    def set_info(self, split_name: str, label_list: List[int], idx_to_label: dict):
+        t_label = torch.tensor(label_list, dtype=torch.int)
+        info = { idx_to_label[value.item()]: (t_label == value).sum().item() for value in torch.unique(t_label) }
+        
+        Logger.instance().debug(f"{split_name}: {info}")
+        self.dataset_info = info
 
 class CustomDataset(DatasetWrapper):
 
@@ -134,58 +113,48 @@ class CustomDataset(DatasetWrapper):
             split_ratios = split_ratios
         else:
             raise ValueError(f"split_ratios argument accepts either a list of 1 value (train,test) or 3 (train,val,test)")
-
-        # the length of unique labels is equal to idx_to_label because I have already filtered them
-        label_count = { c: self.label_list.count(c) for c in self.idx_to_label.keys() }
-
-        label_count_log = { self.idx_to_label[c]: self.label_list.count(c) for c in self.idx_to_label.keys() }
-        Logger.instance().debug(f"Population: {label_count_log}")
         
-        # save positions of the labels for each class
-        class_indices = { label: [] for label in set(self.label_list) }
-        for pos, label in enumerate(self.label_list):
-            class_indices[label].append(pos)
-        
-        # init dicts to store the split data
-        train_indices = {}
-        val_indices = {}
-        test_indices = {}
+        # count the number of elements for each class
+        label_tensor = torch.tensor(self.label_list, dtype=torch.int)
+        populat = { self.idx_to_label[k.item()]: (label_tensor == k).sum().item() for k in torch.unique(label_tensor) }
+        Logger.instance().debug(f"Population: {populat}")
+
+        # dictionary to map class labels to a list of indices (nonzero() operation)
+        class_indices = { label: (label_tensor == label).nonzero().squeeze() for label in torch.unique(label_tensor) }
 
         # split each class into three parts based on percentages
-        for label, count in label_count.items():
-            indices = class_indices[label]
-            random.shuffle(indices)  # Shuffle the indices for randomness
+        split_indices = {}
+        for label, indices in class_indices.items():
+            permuted_indices = indices[torch.randperm(len(indices))]
 
-            train_size = int(split_ratios[0] * count)
-            val_size = int(split_ratios[1] * count)
-            test_size = count - train_size - val_size
+            train_size = int(split_ratios[0] * len(permuted_indices))
+            val_size = int(split_ratios[1] * len(permuted_indices))
+            test_size = len(permuted_indices) - (train_size + val_size)
+            
+            split_indices[label.item()] = torch.split(permuted_indices, [train_size, val_size, test_size])
 
-            train_indices[label] = indices[:train_size]
-            val_indices[label] = indices[train_size:train_size + val_size]
-            test_indices[label] = indices[train_size + val_size:]
-
-        # flatten the dictionaries to get the final selected indices for each split
-        selected_train_indices = [index for indices in train_indices.values() for index in indices]
-        selected_val_indices = [index for indices in val_indices.values() for index in indices]
-        selected_test_indices = [index for indices in test_indices.values() for index in indices]
+        # concatenate the selected indices to get the final indices for each split
+        selected_train_indices = torch.cat([split_indices[label.item()][0] for label in torch.unique(label_tensor)], dim=0).tolist()
+        selected_val_indices = torch.cat([split_indices[label.item()][1] for label in torch.unique(label_tensor)], dim=0).tolist()
+        selected_test_indices = torch.cat([split_indices[label.item()][2] for label in torch.unique(label_tensor)], dim=0).tolist()
 
         # get the image paths and labels for each split and prepare datasets
         train_images = [self.image_list[i] for i in selected_train_indices]
         train_labels = [self.label_list[i] for i in selected_train_indices]
         train_dataset = DatasetLauncher(train_images, train_labels, self.load_image)
-        train_dataset.set_info(train_str, {self.idx_to_label[k]: len(train_indices[k]) for k in train_indices.keys()})
+        train_dataset.set_info(train_str, train_labels, self.idx_to_label)
 
         val_dataset = None
         if len(selected_val_indices) > 0:
             val_images = [self.image_list[i] for i in selected_val_indices]
             val_labels = [self.label_list[i] for i in selected_val_indices]
             val_dataset = DatasetLauncher(val_images, val_labels, self.load_image)
-            val_dataset.set_info(val_str, {self.idx_to_label[k]: len(val_indices[k]) for k in val_indices.keys()})
+            val_dataset.set_info(val_str, val_labels, self.idx_to_label)
 
         test_images = [self.image_list[i] for i in selected_test_indices]
         test_labels = [self.label_list[i] for i in selected_test_indices]
         test_dataset = DatasetLauncher(test_images, test_labels, self.load_image)
-        test_dataset.set_info(test_str, {self.idx_to_label[k]: len(test_indices[k]) for k in test_indices.keys()})
+        test_dataset.set_info(test_str, test_labels, self.idx_to_label)
 
         return train_dataset, val_dataset, test_dataset
     
