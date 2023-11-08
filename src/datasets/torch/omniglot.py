@@ -36,7 +36,7 @@ class OmniglotWrapper(DatasetWrapper):
         return self._train_dataset
     
     @train_dataset.setter
-    def train_dataset(self, value):
+    def train_dataset(self, value: Dataset):
         self._train_dataset = value
 
     @property
@@ -44,7 +44,7 @@ class OmniglotWrapper(DatasetWrapper):
         return self._test_dataset
     
     @test_dataset.setter
-    def test_dataset(self, value):
+    def test_dataset(self, value: Dataset):
         self._test_dataset = value
 
     @property
@@ -52,5 +52,5 @@ class OmniglotWrapper(DatasetWrapper):
         return self._val_dataset
     
     @val_dataset.setter
-    def val_dataset(self, value):
+    def val_dataset(self, value: Optional[Dataset]):
         self._val_dataset = value

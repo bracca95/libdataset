@@ -2,6 +2,7 @@ from .dataset import DatasetWrapper
 from .custom.glass_plate import GlassPlate, GlassPlateTrainYolo, GlassPlateTestYolo
 from .custom.defectviews import GlassOpt, GlassOptBckg, GlassOptTricky, GlassOptDouble, GlassOptDoubleInference, BubblePoint, QPlusV1, QPlusV2, QPlusDouble
 from .torch.omniglot import OmniglotWrapper
+from .torch.celeba import CelebaWrapper
 from .imagefolder.dataset_fsl import FewShotDataset
 from ..utils.config_parser import DatasetConfig
 from ..utils.tools import Logger
@@ -39,16 +40,19 @@ class DatasetBuilder:
             Logger.instance().info("Loading dataset BubblePoint (type GlassOpt)")
             return BubblePoint(dataset_config)
         elif dataset_config.dataset_type == "omniglot":
-            Logger.instance().info("Loading dataset Omniglot (type CustomDataset)")
+            Logger.instance().info("Loading dataset Omniglot (type DatasetWrapper)")
             return OmniglotWrapper(dataset_config)
+        elif dataset_config.dataset_type == "celeba":
+            Logger.instance().info("Loading dataset Omniglot (type DatasetWrapper)")
+            return CelebaWrapper(dataset_config)
         elif dataset_config.dataset_type in ("miniimagenet", "cub", "cifar_fs"):
-            Logger.instance().info("Loading dataset Mini Imagenet (type CustomDataset)")
+            Logger.instance().info("Loading dataset Mini Imagenet (type DatasetWrapper)")
             return FewShotDataset(dataset_config)
         else:
             raise ValueError(
                 "values allowed: {`opt6`, `opt_bckg`, `opt_double`, `opt_double_inference`, `binary`, `qplusv1`, " +
                 "`qplusv2`, `qplus_double`, `omniglot`, `miniimagenet`, `opt_yolo_train`, `opt_yolo_test`, `cub`, " +
-                "`cifar_fs`} for dataset_type"
+                "`cifar_fs`, `celeba`} for dataset_type"
             )
         
 class YoloDatasetBuilder:

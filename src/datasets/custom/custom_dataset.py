@@ -25,7 +25,7 @@ class DatasetLauncher(Dataset):
         self.label_list = label_list
         self.load_img_callback = load_img_callback
 
-        self.dataset_info: Optional[dict] = None
+        self.info_dict: Optional[dict] = None
 
     def __getitem__(self, index):
         curr_img_batch = self.image_list[index]
@@ -41,7 +41,7 @@ class DatasetLauncher(Dataset):
         info = { idx_to_label[value.item()]: (t_label == value).sum().item() for value in torch.unique(t_label) }
         
         Logger.instance().debug(f"{split_name}: {info}")
-        self.dataset_info = info
+        self.info_dict = info
 
 class CustomDataset(DatasetWrapper):
 
@@ -207,7 +207,7 @@ class CustomDataset(DatasetWrapper):
         return self._train_dataset
     
     @train_dataset.setter
-    def train_dataset(self, value):
+    def train_dataset(self, value: Dataset):
         self._train_dataset = value
 
     @property
@@ -215,7 +215,7 @@ class CustomDataset(DatasetWrapper):
         return self._test_dataset
     
     @test_dataset.setter
-    def test_dataset(self, value):
+    def test_dataset(self, value: Dataset):
         self._test_dataset = value
 
     @property
@@ -223,5 +223,5 @@ class CustomDataset(DatasetWrapper):
         return self._val_dataset
     
     @val_dataset.setter
-    def val_dataset(self, value):
+    def val_dataset(self, value: Optional[Dataset]):
         self._val_dataset = value

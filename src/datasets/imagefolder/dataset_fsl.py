@@ -3,7 +3,7 @@ import os
 from typing import Optional
 from torch.utils.data import Dataset
 from torchvision.datasets import ImageFolder
-from torchvision.transforms import transforms
+from torchvision.transforms import transforms, Compose
 
 from ..dataset import DatasetWrapper
 from ...utils.tools import Logger, Tools
@@ -39,13 +39,13 @@ class FewShotDataset(DatasetWrapper):
         
         self._train_dataset = ImageFolder(
             os.path.join(self.dataset_config.dataset_path, self.META_TRAIN),
-            transform=transforms.Compose([transforms.ToTensor(), self.normalize_or_identity(dataset_config)]),
+            transform=self.load_image(dataset_config),
             target_transform=None,
         )
 
         self._test_dataset = ImageFolder(
             os.path.join(self.dataset_config.dataset_path, self.META_TEST),
-            transform=transforms.Compose([transforms.ToTensor(), self.normalize_or_identity(dataset_config)]),
+            transform=self.load_image(dataset_config),
             target_transform=None
         )
 
@@ -53,7 +53,7 @@ class FewShotDataset(DatasetWrapper):
         if self.META_VAL in os.listdir(self.dataset_config.dataset_path):
             self._val_dataset = ImageFolder(
                 os.path.join(self.dataset_config.dataset_path, self.META_VAL),
-                transform=transforms.Compose([transforms.ToTensor(), self.normalize_or_identity(dataset_config)]),
+                transform=self.load_image(dataset_config),
                 target_transform=None
             )
 
@@ -62,13 +62,21 @@ class FewShotDataset(DatasetWrapper):
             msg = f"'meta_train' and/or 'meta_test' dir/s missing in {self.dataset_config.dataset_path}"
             Logger.instance().error(msg)
             raise ValueError(msg)
+    
+    @staticmethod
+    def load_image(dataset_config: DatasetConfig) -> Compose:
+        return transforms.Compose([
+                transforms.Resize((dataset_config.image_size, dataset_config.image_size)),
+                transforms.ToTensor(),
+                DatasetWrapper.normalize_or_identity(dataset_config)
+            ])
 
     @property
     def train_dataset(self) -> Dataset:
         return self._train_dataset
     
     @train_dataset.setter
-    def train_dataset(self, value):
+    def train_dataset(self, value: Dataset):
         self._train_dataset = value
 
     @property
@@ -76,7 +84,7 @@ class FewShotDataset(DatasetWrapper):
         return self._test_dataset
     
     @test_dataset.setter
-    def test_dataset(self, value):
+    def test_dataset(self, value: Dataset):
         self._test_dataset = value
 
     @property
@@ -84,5 +92,5 @@ class FewShotDataset(DatasetWrapper):
         return self._val_dataset
     
     @val_dataset.setter
-    def val_dataset(self, value):
+    def val_dataset(self, value: Optional[Dataset]):
         self._val_dataset = value
