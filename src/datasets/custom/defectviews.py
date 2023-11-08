@@ -6,10 +6,10 @@ from glob import glob
 from typing import List
 from torchvision import transforms
 
-from .dataset import CustomDataset
-from ..imgproc import Processing
-from ..utils.tools import Logger, Tools
-from ..utils.config_parser import DatasetConfig
+from .custom_dataset import CustomDataset
+from ...imgproc import Processing
+from ...utils.tools import Logger, Tools
+from ...utils.config_parser import DatasetConfig
 
 
 class GlassOpt(CustomDataset):

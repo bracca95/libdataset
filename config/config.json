@@ -1,6 +1,6 @@
 {
-    "dataset_path": "/media/lorenzo/M/datasets/dmx/dataset_opt/",
-    "dataset_type": "opt_yolo_train",
+    "dataset_path": "/media/lorenzo/M/datasets/dmx/dmx_2c/bb_margin",
+    "dataset_type": "opt_double",
     "dataset_splits": [
         0.7,
         0.0,
@@ -8,17 +8,9 @@
     ],
     "normalize": true,
     "crop_size": 60,
-    "image_size": 224,
+    "image_size": 105,
     "augment_online": null,
     "augment_offline": null,
-    "dataset_mean": [
-        0.48500001430511475,
-        0.4560000002384186,
-        0.4059999883174896
-    ],
-    "dataset_std": [
-        0.2290000021457672,
-        0.2240000069141388,
-        0.22499999403953552
-    ]
+    "dataset_mean": null,
+    "dataset_std": null
 }

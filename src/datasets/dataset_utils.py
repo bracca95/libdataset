@@ -1,13 +1,8 @@
-from typing import Union
-from torch.utils.data import Dataset
-
-from .dataset import CustomDataset
-from .cub import Cub
-from .cifar import CifarFs
-from .glass_plate import GlassPlate, GlassPlateTrainYolo, GlassPlateTestYolo
-from .defectviews import GlassOpt, GlassOptBckg, GlassOptTricky, GlassOptDouble, GlassOptDoubleInference, BubblePoint, QPlusV1, QPlusV2, QPlusDouble
-from .omniglot import CustomOmniglot
-from .miniimagenet import MiniImageNet
+from .dataset import DatasetWrapper
+from .custom.glass_plate import GlassPlate, GlassPlateTrainYolo, GlassPlateTestYolo
+from .custom.defectviews import GlassOpt, GlassOptBckg, GlassOptTricky, GlassOptDouble, GlassOptDoubleInference, BubblePoint, QPlusV1, QPlusV2, QPlusDouble
+from .torch.omniglot import OmniglotWrapper
+from .imagefolder.dataset_fsl import FewShotDataset
 from ..utils.config_parser import DatasetConfig
 from ..utils.tools import Logger
 
@@ -15,9 +10,9 @@ from ..utils.tools import Logger
 class DatasetBuilder:
 
     @staticmethod
-    def load_dataset(dataset_config: DatasetConfig) -> CustomDataset:
+    def load_dataset(dataset_config: DatasetConfig) -> DatasetWrapper:
         if dataset_config.dataset_type == "opt6":
-            Logger.instance().info("Loading dataset GlassOpt (type CustomDataset)")
+            Logger.instance().info("Loading dataset GlassOpt (type DatasetWrapper)")
             return GlassOpt(dataset_config)
         elif dataset_config.dataset_type == "opt_bckg":
             Logger.instance().info("Loading dataset GlassOptBckg (type GlassOpt)")
@@ -45,16 +40,10 @@ class DatasetBuilder:
             return BubblePoint(dataset_config)
         elif dataset_config.dataset_type == "omniglot":
             Logger.instance().info("Loading dataset Omniglot (type CustomDataset)")
-            return CustomOmniglot(dataset_config)
-        elif dataset_config.dataset_type == "miniimagenet":
+            return OmniglotWrapper(dataset_config)
+        elif dataset_config.dataset_type in ("miniimagenet", "cub", "cifar_fs"):
             Logger.instance().info("Loading dataset Mini Imagenet (type CustomDataset)")
-            return MiniImageNet(dataset_config)
-        elif dataset_config.dataset_type == "cub":
-            Logger.instance().info("Loading dataset CUB (type CustomDataset)")
-            return Cub(dataset_config)
-        elif dataset_config.dataset_type == "cifar_fs":
-            Logger.instance().info("Loading dataset CIFAR-FS (type CustomDataset)")
-            return CifarFs(dataset_config)
+            return FewShotDataset(dataset_config)
         else:
             raise ValueError(
                 "values allowed: {`opt6`, `opt_bckg`, `opt_double`, `opt_double_inference`, `binary`, `qplusv1`, " +

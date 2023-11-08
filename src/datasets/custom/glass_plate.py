@@ -14,12 +14,11 @@ from dataclasses import dataclass
 from torch.utils.data import Dataset as TorchDataset
 from torchvision.transforms import transforms
 
-from .dataset import CustomDataset
-from ..utils.tools import Logger, Tools
-from ..utils.config_parser import DatasetConfig
-from ...config.consts import PlatePathsDict
-from ...config.consts import General as _CG
-from ...config.consts import BboxFileHeader as _CH
+from ...utils.tools import Logger, Tools
+from ...utils.config_parser import DatasetConfig
+from ....config.consts import PlatePathsDict
+from ....config.consts import General as _CG
+from ....config.consts import BboxFileHeader as _CH
 
 
 class SaveDefects:

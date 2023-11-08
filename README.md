@@ -1,7 +1,7 @@
 # Baseline Project for Defect Views dataset
 
 ## Dataset
-Your own dataset can be built by inheriting from the abstract class `CustomDataset` in `src.dataset.dataset`
+Your own dataset can be built by implementing the abstract class `DatasetWrapper` in `src.dataset.dataset.py`
 
 ## Dataset Config
 Edit the `config/config.json` file to start

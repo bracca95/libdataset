@@ -42,7 +42,7 @@ if __name__=="__main__":
     # compute mean and variance of the dataset if not done yet
     if config.normalize and config.dataset_mean is None and config.dataset_std is None:
         Logger.instance().warning("No mean and std set: computing and storing values.")
-        mean, std = dataset.compute_mean_std(dataset)
+        mean, std = dataset.compute_mean_std(dataset.train_dataset, config.dataset_type)
         config.dataset_mean = mean.tolist()
         config.dataset_std = std.tolist()
         write_to_json(config, os.getcwd(), "config/config.json")

@@ -1,198 +1,32 @@
-from __future__ import annotations
-
 import os
 import torch
 
-from PIL import Image
-from PIL.Image import Image as PilImgType
-from abc import ABC, abstractmethod, abstractproperty
-from typing import Optional, List, Tuple, Callable
-from dataclasses import dataclass
-from torch.utils.data import Dataset, DataLoader, Subset, random_split
-from torch.utils.data import Subset
+from abc import ABC, abstractproperty
+from typing import Tuple
+from torchvision import transforms
 from torchvision.utils import make_grid
-from torchvision.transforms import transforms
+from torch.utils.data import Dataset, DataLoader
 
-from ..imgproc import Processing
-from ..utils.tools import Tools, Logger
+from ..utils.tools import Logger
 from ..utils.config_parser import DatasetConfig
-from ...config.consts import SubsetsDict
-from ...config.consts import General as _GC
 
 
-@dataclass
-class SubsetInfo:
-    """SubsetInfo dataclass
-
-    The aim of this class is to wrap the output of torch.utils.data.random_split, so that it contains the information
-    related to the number of samples that belong to the split subsets. If you are creating your own dataset and then
-    you want to use pytorch's random_split method, this is the way to go not to lose information. Mind that subset
-    is a tuple containing THE WHOLE dataset and the indexes of the values that are in the subset.
-
-    name (str): name of the split set { 'train', 'val', 'test' }
-    subset (Optional[Subset]): one element of the list outputted by torch.utils.data.random_split
-    info_dict (Optional): dict with (key, val) = (class name, number of instances per class)
-
-    SeeAlso:
-        [PyTorch's Subset documentation](https://pytorch.org/docs/stable/data.html#torch.utils.data.Subset)
-    """
-    
-    name: str
-    subset: Optional[Subset]
-    info_dict: Optional[dict]
-
-
-class CustomDataset(ABC, Dataset):
-
-    label_to_idx = {}
-    idx_to_label = Tools.invert_dict(label_to_idx)
-
-    AUG_DIR = "img_augment"
+class DatasetWrapper(ABC):
 
     @abstractproperty
-    def augment_strategy(self):
+    def train_dataset(self):
         ...
 
-    @abstractmethod
-    def get_image_list(self, filt: Optional[List[str]]) -> List[str]:
+    @abstractproperty
+    def test_dataset(self):
         ...
 
-    @abstractmethod
-    def get_label_list(self) -> List[int]:
+    @abstractproperty
+    def val_dataset(self):
         ...
-
-    def __init__(self, dataset_config: DatasetConfig):
-        Dataset().__init__()
-        self.dataset_config = dataset_config
-        
-        self.dataset_aug_path: str = os.path.join(os.path.dirname(self.dataset_config.dataset_path), self.AUG_DIR)
-        self.filt: List[str] = list(self.label_to_idx.keys())
-
-        if self.dataset_config.augment_offline is not None:
-            self.augment_dataset(50, self.augment_strategy)
-
-        self.image_list: Optional[List[str]] = self.get_image_list(self.filt)
-        self.label_list: Optional[List[int]] = self.get_label_list()
-
-        self.in_dim = self.dataset_config.image_size
-        self.out_dim = len(self.label_to_idx)
-
-        self.subsets_dict: SubsetsDict = self.split_dataset(self.dataset_config.dataset_splits)
-
-    def __getitem__(self, index):
-        return Dataset.__getitem__(self, index)
-    
-    def __len__(self):
-        """ https://github.com/pytorch/pytorch/issues/25247#issuecomment-525380635
-        No `def __len__(self)` default?
-        See NOTE [ Lack of Default `__len__` in Python Abstract Base Classes ]
-        in pytorch/torch/utils/data/sampler.py 
-        """
-        return Dataset.__len__(self)
-
-    def split_dataset(self, split_ratios: List[float]=[.8]) -> SubsetsDict:
-        """Split a dataset into train, (val), test
-        
-        Wrap torch.utils.data.random_split with a TypedDict that includes:
-        { 'train': torch.utils.data.Subset, 'val': torch.utils.data.Subset, 'test': torch.utils.data.Subset }
-        The validation subset is None if not required.
-
-        This is not the best approach to use for few-shot learning, as it includes all the classes in all the splits.
-        We would like to have different classes for train/val/test splits instead. However, since the number of classes
-        for our glass dataset is very low, we train with all possibile combinations. 
-        Use fsl_split for proper FSL split.
-
-        Args:
-            split_ratios (List[float]=[.8]): if len == 1: train/test, if len == 3 train/val/test else exception
-
-        Returns:
-            SubsetsDict (TypedDict)
-
-        Raises:
-            ValueError if split_ratios != {1, 3}
-
-        """
-        
-        if type(split_ratios) is float:
-            split_ratios = [split_ratios]
-        
-        train_len = int(len(self) * split_ratios[0])
-        if len(split_ratios) == 1:
-            split_lens = [train_len, len(self) - train_len]
-        elif len(split_ratios) == 3:
-            val_len = int(len(self) * split_ratios[1])
-            split_lens = [train_len, val_len, len(self) - (train_len + val_len)]
-        else:
-            raise ValueError(f"split_ratios argument accepts either a list of 1 value (train,test) or 3 (train,val,test)")
-
-        subsets = random_split(self, split_lens)
-        val_set = subsets[1] if len(split_lens) == 3 and len(subsets[1]) > 0 else None
-
-        train_str, val_str, test_str = _GC.DEFAULT_SUBSETS
-        Logger.instance().debug(f"Splitting dataset: {split_lens}")
-        
-        return { train_str: subsets[0], val_str: val_set, test_str: subsets[-1] }   # type: ignore
-
-    def get_subset_info(self, subset_str_id: str) -> SubsetInfo:
-        """Wrap subset into SubsetInfo structure (holds more information)
-
-        Args:
-            subset_str_id (str): { 'train', 'val', 'test' }
-
-        Returns:
-            SubsetInfo if the Subset is present (validation dataset can be None)
-
-        Raises:
-            ValueError if `subset_str_id` is not in { 'train', 'val', 'test' }
-        """
-
-        if subset_str_id not in _GC.DEFAULT_SUBSETS:
-            raise ValueError(f"TrainTest::get_subset_info: only accept 'train', 'val', 'test'")
-        
-        if self.subsets_dict[subset_str_id] is None:
-            info_dict = None
-        else:
-            idxs = torch.IntTensor(self.subsets_dict[subset_str_id].indices)
-            subset_labels = torch.index_select(torch.IntTensor(self.label_list), 0, idxs)
-            classes = torch.unique(subset_labels)
-            info_dict = { self.idx_to_label[i]: torch.eq(subset_labels, i).sum().item() for i in classes.tolist() }
-            Logger.instance().debug(f"{subset_str_id} has {len(classes)} classes: {info_dict}")
-        
-        return SubsetInfo(subset_str_id, self.subsets_dict[subset_str_id], info_dict)
-    
-    def augment_dataset(self, iters: int, augment_func: Optional[Callable[[PilImgType], PilImgType]]):
-        """Perform offline augmentation
-        
-        Increase the number of available samples with augmentation techniques, if required in config. Offline
-        augmentation can work on a limited set of classes; indeed, it should be used if there are not enough samples
-        for each class.
-
-        Args:
-            iters (int): number of augmentation iteration for the same image.
-            augment_fuct (Callable): function used to augment.
-        """
-
-        if augment_func is None:
-            Logger.instance().debug("No augment function specified: return")
-            return
-        
-        Logger.instance().debug("increasing the number of images...")
-        
-        if os.path.exists(self.dataset_aug_path):
-            if len(os.listdir(self.dataset_aug_path)) > 0:
-                Logger.instance().warning("the dataset has already been augmented")
-                return
-        else:
-            os.makedirs(self.dataset_aug_path)
-        
-        image_list = self.get_image_list(self.dataset_config.augment_offline)
-        Processing.store_augmented_images(image_list, self.dataset_aug_path, iters, augment_func)
-
-        Logger.instance().debug("dataset augmentation completed")
 
     @staticmethod
-    def compute_mean_std(dataset: CustomDataset) -> Tuple[torch.Tensor, torch.Tensor]:
-        ds_type = dataset.dataset_config.dataset_type
+    def compute_mean_std(dataset: Dataset, ds_type: str="") -> Tuple[torch.Tensor, torch.Tensor]:
         if "imagenet" in ds_type or "cifar" in ds_type:
             Logger.instance().debug(f"Dataset type is {ds_type}: imagenet mean/std selected")
             return torch.Tensor([0.485, 0.456, 0.406]), torch.Tensor([0.229, 0.224, 0.225])
@@ -250,79 +84,7 @@ class CustomDataset(ABC, Dataset):
         return torch.nn.Identity()
     
     @staticmethod
-    def fsl_split(dataset: Dataset, label_list: List[int], n_classes: int, split_ratios: List[float]) -> SubsetsDict:
-        """Split based on the number of classes
-        
-        This function provides a better implementation for splitting a FSL dataset, so that the classes in 
-        train/val/test splits do not intersect. Call this method inside the overwritten version of split_dataset().
-
-        Args:
-            dataset (Dataset): the dataset to split
-            label_list (List[int]): all the labels of all the images
-            n_classes (int): the total number of classes of the dataset
-            split_ratios (List[float]): train/val/test split percentage
-        """
-
-        if len(split_ratios) == 1:
-            split_ratios = [split_ratios[0], 1.0 - split_ratios[0]]
-        if len(split_ratios) == 2 or len(split_ratios) > 3:
-            raise ValueError(f"split_ratios argument accepts either a list of 1 value (train,test) or 3 (train,val,test)")
-
-        shuffled_idxs = torch.randperm(n_classes)
-        split_points = [int(n_classes * ratio) for ratio in split_ratios]
-
-        # if no validation is used, set eof_split to 0 so that the last index starts with the end of train
-        if len(split_points) == 3:
-            eof_split = split_points[1]
-            classes_val = shuffled_idxs[split_points[0]:split_points[0] + split_points[1]]
-        else:
-            eof_split = 0
-            classes_val = []
-
-        # Split the numbers into two or three sets
-        classes_train = shuffled_idxs[:split_points[0]]
-        classes_test = shuffled_idxs[split_points[0] + eof_split:]
-
-        if not len(shuffled_idxs) == len(classes_train) + len(classes_val) + len(classes_test):
-            raise ValueError(f"The number of classes {shuffled_idxs} does not match the split.")
-        
-        # ## This should be faster but might be slow
-        # # Create a subset with only the desired classes
-        # subset_train_indices = [i for i in range(len(self)) if self[i][1] in classes_train]
-        # subset_train = Subset(self, subset_indices)
-
-        # get all class labels as tensor
-        class_labels = torch.LongTensor(label_list)
-
-        # Convert list splits to tensors
-        classes_train = torch.LongTensor(classes_train)
-        classes_val = torch.LongTensor(classes_val)
-        classes_test = torch.LongTensor(classes_test)
-
-        # Create a boolean mask where each element corresponds to whether the class label is in desired_classes
-        mask_train = torch.any(class_labels.unsqueeze(1) == classes_train, dim=1)
-        mask_val = torch.any(class_labels.unsqueeze(1) == classes_val, dim=1)
-        mask_test = torch.any(class_labels.unsqueeze(1) == classes_test, dim=1)
-
-        # Get the indices where the mask is True
-        subset_indices_train = torch.nonzero(mask_train).squeeze()
-        subset_indices_val = torch.nonzero(mask_val).squeeze()
-        subset_indices_test = torch.nonzero(mask_test).squeeze()
-        
-        if classes_val.numel() == 0:
-            val_set = None
-        else:
-            val_set = Subset(dataset, subset_indices_val.tolist())
-        
-        train_set = Subset(dataset, subset_indices_train.tolist())
-        test_set = Subset(dataset, subset_indices_test.tolist())
-
-        train_str, val_str, test_str = _GC.DEFAULT_SUBSETS
-
-        return { train_str: train_set, val_str: val_set, test_str: test_set }   # type: ignore
-    
-    @staticmethod
-    def save_sample_image_batch(dataset: CustomDataset, outfolder: str):
+    def save_sample_image_batch(dataset: Dataset, outfolder: str):
         if "sample_batch.png" in os.listdir(outfolder):
             return
         
