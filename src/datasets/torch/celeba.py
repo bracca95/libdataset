@@ -33,7 +33,7 @@ class CelebaWrapper(DatasetWrapper):
 
         self._val_dataset = CelebA(
             os.path.dirname(self.dataset_config.dataset_path),
-            split="val",
+            split="valid",
             target_type="bbox",
             transform=self.load_image(self.dataset_config),
             download=False
@@ -42,6 +42,8 @@ class CelebaWrapper(DatasetWrapper):
     @staticmethod
     def load_image(dataset_config: DatasetConfig) -> Compose:
         return transforms.Compose([
+                transforms.CenterCrop((dataset_config.crop_size, dataset_config.crop_size)),
+                transforms.RandomHorizontalFlip(),
                 transforms.Resize((dataset_config.image_size, dataset_config.image_size)),
                 transforms.ToTensor(),
                 DatasetWrapper.normalize_or_identity(dataset_config)

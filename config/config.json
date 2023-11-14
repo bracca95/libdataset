@@ -1,6 +1,6 @@
 {
-    "dataset_path": "/media/lorenzo/M/datasets/dmx/dmx_2c/bb_margin",
-    "dataset_type": "opt_double",
+    "dataset_path": "/media/lorenzo/M/datasets/celeba",
+    "dataset_type": "celeba",
     "dataset_splits": [
         0.7,
         0.0,

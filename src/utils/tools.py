@@ -151,7 +151,10 @@ class Logger:
 
     def __init__(self, formatter='%(asctime)-2s # %(levelname)-2s # %(message)s'):
         formatter = logging.Formatter(formatter)
-        log_file_path = os.path.join(os.getcwd(), "log.log")
+        og_file_dir = os.path.join(os.getcwd(), "output")
+        if not os.path.exists(og_file_dir):
+            os.makedirs(og_file_dir)
+        log_file_path = os.path.join(og_file_dir, "log.log")
 
         # logger basic config
         self.logger = logging.getLogger(__name__)
