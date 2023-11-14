@@ -10,38 +10,12 @@ from typing import Optional, List, Tuple, Callable
 from torch.utils.data import Dataset
 from torchvision.transforms import transforms
 
-from ..dataset import DatasetWrapper
+from ..dataset import DatasetWrapper, DatasetLauncher
 from ...imgproc import Processing
 from ...utils.tools import Tools, Logger
 from ...utils.config_parser import DatasetConfig
 from ....config.consts import General as _CG
 
-
-class DatasetLauncher(Dataset):
-
-    def __init__(self, image_list: List[str], label_list: List[int], load_img_callback: Callable[[str], torch.Tensor]):
-        super().__init__()
-        self.image_list = image_list
-        self.label_list = label_list
-        self.load_img_callback = load_img_callback
-
-        self.info_dict: Optional[dict] = None
-
-    def __getitem__(self, index):
-        curr_img_batch = self.image_list[index]
-        curr_label_batch = self.label_list[index]
-        
-        return self.load_img_callback(curr_img_batch), curr_label_batch
-
-    def __len__(self):
-        return len(self.label_list)
-
-    def set_info(self, split_name: str, label_list: List[int], idx_to_label: dict):
-        t_label = torch.tensor(label_list, dtype=torch.int)
-        info = { idx_to_label[value.item()]: (t_label == value).sum().item() for value in torch.unique(t_label) }
-        
-        Logger.instance().debug(f"{split_name}: {info}")
-        self.info_dict = info
 
 class CustomDataset(DatasetWrapper):
 
@@ -71,8 +45,8 @@ class CustomDataset(DatasetWrapper):
         if self.dataset_config.augment_offline is not None:
             self.augment_dataset(50, self.augment_strategy)
 
-        self.image_list: Optional[List[str]] = self.get_image_list(self.filt)
-        self.label_list: Optional[List[int]] = self.get_label_list()
+        self._image_list: List[str] = self.get_image_list(self.filt)
+        self._label_list: List[int] = self.get_label_list()
 
         split_ratios = self.dataset_config.dataset_splits
         self._train_dataset, self._val_dataset, self._test_dataset = self.split_dataset(split_ratios)
@@ -99,7 +73,7 @@ class CustomDataset(DatasetWrapper):
 
         """
 
-        if self.label_list is None:
+        if len(self.label_list) == 0:
             raise ValueError(f"Cannot split dataset if the length of labels is unknown")
 
         train_str, val_str, test_str = _CG.DEFAULT_SUBSETS
@@ -138,27 +112,28 @@ class CustomDataset(DatasetWrapper):
         selected_val_indices = torch.cat([split_indices[label.item()][1] for label in torch.unique(label_tensor)], dim=0).tolist()
         selected_test_indices = torch.cat([split_indices[label.item()][2] for label in torch.unique(label_tensor)], dim=0).tolist()
 
+        augment = True if self.dataset_config.augment_online is not None else False
         # get the image paths and labels for each split and prepare datasets
         train_images = [self.image_list[i] for i in selected_train_indices]
         train_labels = [self.label_list[i] for i in selected_train_indices]
-        train_dataset = DatasetLauncher(train_images, train_labels, self.load_image)
-        train_dataset.set_info(train_str, train_labels, self.idx_to_label)
+        train_dataset = DatasetLauncher(train_images, train_labels, augment, load_img_callback=self.load_image)
+        train_dataset.set_info(train_labels, self.idx_to_label)
 
         val_dataset = None
         if len(selected_val_indices) > 0:
             val_images = [self.image_list[i] for i in selected_val_indices]
             val_labels = [self.label_list[i] for i in selected_val_indices]
-            val_dataset = DatasetLauncher(val_images, val_labels, self.load_image)
-            val_dataset.set_info(val_str, val_labels, self.idx_to_label)
+            val_dataset = DatasetLauncher(val_images, val_labels, augment=False, load_img_callback=self.load_image)
+            val_dataset.set_info(val_labels, self.idx_to_label)
 
         test_images = [self.image_list[i] for i in selected_test_indices]
         test_labels = [self.label_list[i] for i in selected_test_indices]
-        test_dataset = DatasetLauncher(test_images, test_labels, self.load_image)
-        test_dataset.set_info(test_str, test_labels, self.idx_to_label)
+        test_dataset = DatasetLauncher(test_images, test_labels, augment=False, load_img_callback=self.load_image)
+        test_dataset.set_info(test_labels, self.idx_to_label)
 
         return train_dataset, val_dataset, test_dataset
     
-    def load_image(self, path: str) -> torch.Tensor:
+    def load_image(self, path: str, augment: bool) -> torch.Tensor:
         img_pil = Image.open(path).convert("RGB")
         
         # resize
@@ -168,7 +143,7 @@ class CustomDataset(DatasetWrapper):
         img = transforms.ToTensor()(img_pil)
 
         # normalize
-        img = self.normalize_or_identity(self.dataset_config)(img)
+        img = DatasetLauncher.normalize_or_identity(self.dataset_config)(img)
 
         return img
     
@@ -201,6 +176,23 @@ class CustomDataset(DatasetWrapper):
         Processing.store_augmented_images(image_list, self.dataset_aug_path, iters, augment_func)
 
         Logger.instance().debug("dataset augmentation completed")
+
+
+    @property
+    def image_list(self) -> List[str]:
+        return self._image_list
+    
+    @image_list.setter
+    def image_list(self, value):
+        self._image_list = value
+
+    @property
+    def label_list(self) -> List[int]:
+        return self._label_list
+    
+    @label_list.setter
+    def label_list(self, value):
+        self._label_list = value
 
     @property
     def train_dataset(self) -> Dataset:

@@ -7,6 +7,7 @@ from typing import List
 from torchvision import transforms
 
 from .custom_dataset import CustomDataset
+from ..dataset import DatasetLauncher
 from ...imgproc import Processing
 from ...utils.tools import Logger, Tools
 from ...utils.config_parser import DatasetConfig
@@ -87,7 +88,7 @@ class GlassOpt(CustomDataset):
             List[str] with the name of the labels
         """
         
-        if self.image_list is None:
+        if len(self.image_list) == 0:
             self.get_image_list(self.filt)
 
         label_list = list(map(lambda x: self.split_name(x), self.image_list))
@@ -132,7 +133,7 @@ class GlassOpt(CustomDataset):
         img = transforms.ToTensor()(img_pil)
 
         # normalize
-        img = self.normalize_or_identity(self.dataset_config)(img)
+        img = DatasetLauncher.normalize_or_identity(self.dataset_config)(img)
 
         return img # type: ignore
 
@@ -315,7 +316,7 @@ class GlassOptDouble(GlassOpt):
             img = img_1.clone()
 
         # normalize
-        img = self.normalize_or_identity(self.dataset_config)(img)
+        img = DatasetLauncher.normalize_or_identity(self.dataset_config)(img)
 
         return img # type: ignore
     

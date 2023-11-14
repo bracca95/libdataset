@@ -1,6 +1,6 @@
 {
-    "dataset_path": "/media/lorenzo/M/datasets/celeba",
-    "dataset_type": "celeba",
+    "dataset_path": "/media/lorenzo/M/datasets/omniglot-py",
+    "dataset_type": "omniglot",
     "dataset_splits": [
         0.7,
         0.0,

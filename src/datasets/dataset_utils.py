@@ -1,9 +1,14 @@
+from typing import Union
+from torch.utils.data import Dataset
+
 from .dataset import DatasetWrapper
-from .custom.glass_plate import GlassPlate, GlassPlateTrainYolo, GlassPlateTestYolo
+from .other.glass_plate import GlassPlate, GlassPlateTrainYolo, GlassPlateTestYolo
 from .custom.defectviews import GlassOpt, GlassOptBckg, GlassOptTricky, GlassOptDouble, GlassOptDoubleInference, BubblePoint, QPlusV1, QPlusV2, QPlusDouble
-from .torch.omniglot import OmniglotWrapper
+from .custom.omniglot import OmniglotWrapper
+from .custom.miniimagenet import MiniImagenet
+from .custom.cifar import CifarFs
+from .custom.cub import Cub
 from .torch.celeba import CelebaWrapper
-from .imagefolder.dataset_fsl import FewShotDataset
 from ..utils.config_parser import DatasetConfig
 from ..utils.tools import Logger
 
@@ -11,7 +16,7 @@ from ..utils.tools import Logger
 class DatasetBuilder:
 
     @staticmethod
-    def load_dataset(dataset_config: DatasetConfig) -> DatasetWrapper:
+    def load_dataset(dataset_config: DatasetConfig) -> Union[DatasetWrapper, Dataset]:
         if dataset_config.dataset_type == "opt6":
             Logger.instance().info("Loading dataset GlassOpt (type DatasetWrapper)")
             return GlassOpt(dataset_config)
@@ -45,9 +50,15 @@ class DatasetBuilder:
         elif dataset_config.dataset_type == "celeba":
             Logger.instance().info("Loading dataset Omniglot (type DatasetWrapper)")
             return CelebaWrapper(dataset_config)
-        elif dataset_config.dataset_type in ("miniimagenet", "cub", "cifar_fs"):
+        elif dataset_config.dataset_type == "miniimagenet":
             Logger.instance().info("Loading dataset Mini Imagenet (type DatasetWrapper)")
-            return FewShotDataset(dataset_config)
+            return MiniImagenet(dataset_config)
+        elif dataset_config.dataset_type == "cifar_fs":
+            Logger.instance().info("Loading dataset CIFAR-FS (type DatasetWrapper)")
+            return CifarFs(dataset_config)
+        elif dataset_config.dataset_type == "cub":
+            Logger.instance().info("Loading dataset CUB (type DatasetWrapper)")
+            return Cub(dataset_config)
         else:
             raise ValueError(
                 "values allowed: {`opt6`, `opt_bckg`, `opt_double`, `opt_double_inference`, `binary`, `qplusv1`, " +

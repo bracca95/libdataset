@@ -1,8 +1,8 @@
 import os
 import torch
 
-from abc import ABC, abstractproperty
-from typing import Tuple
+from abc import ABC, abstractproperty, abstractmethod
+from typing import Tuple, List, Callable, Optional
 from torchvision import transforms
 from torchvision.utils import make_grid
 from torch.utils.data import Dataset, DataLoader
@@ -12,18 +12,73 @@ from ..utils.config_parser import DatasetConfig
 
 
 class DatasetWrapper(ABC):
+    """Wrapper for an entire dataset
+
+    This interface is meant to wrap an entire dataset with its splits. Torch Datasets are usually kept separated, but
+    I want to wrap them in a unique class in order to be able to split as I wish and keep track of the label list and
+    image paths for all the samples (it may be required in tasks like FSL).
+    """
 
     @abstractproperty
-    def train_dataset(self):
+    def image_list(self) -> List[str]:
         ...
 
     @abstractproperty
-    def test_dataset(self):
+    def label_list(self) -> List[int]:
         ...
 
     @abstractproperty
-    def val_dataset(self):
+    def train_dataset(self) -> Dataset:
         ...
+
+    @abstractproperty
+    def test_dataset(self) -> Dataset:
+        ...
+
+    @abstractproperty
+    def val_dataset(self) -> Optional[Dataset]:
+        ...
+
+    @abstractmethod
+    def split_dataset(self, split_ratios: Optional[List[float]]) -> Tuple[Dataset, Optional[Dataset], Dataset]:
+        ...
+
+
+class DatasetLauncher(Dataset):
+    """One split of DatasetWrapper
+
+    This class is meant to replicate a single torch Dataset, but it is able to keep track of all the indices and image
+    paths. Torch structures like ImageFolder or other subclasses of Dataset do not always allow for that.
+    """
+
+    def __init__(
+            self,
+            image_list: List[str],
+            label_list: List[int],
+            augment: bool,
+            load_img_callback: Callable[[str, bool], torch.Tensor]
+    ):
+        super().__init__()
+        self.image_list = image_list
+        self.label_list = label_list
+        self.augment = augment
+        self.load_img_callback = load_img_callback
+
+        self.info_dict: Optional[dict] = None
+
+    def __getitem__(self, index):
+        curr_img_batch = self.image_list[index]
+        curr_label_batch = self.label_list[index]
+        
+        return self.load_img_callback(curr_img_batch, self.augment), curr_label_batch
+
+    def __len__(self):
+        return len(self.label_list)
+
+    def set_info(self, label_list: List[int], idx_to_label: dict):
+        t_label = torch.tensor(label_list, dtype=torch.int)
+        info = { idx_to_label[value.item()]: (t_label == value).sum().item() for value in torch.unique(t_label) }
+        self.info_dict = info
 
     @staticmethod
     def compute_mean_std(dataset: Dataset, ds_type: str="") -> Tuple[torch.Tensor, torch.Tensor]:
