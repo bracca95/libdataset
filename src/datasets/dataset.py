@@ -39,10 +39,6 @@ class DatasetWrapper(ABC):
     def val_dataset(self) -> Optional[Dataset]:
         ...
 
-    @abstractmethod
-    def split_dataset(self, split_ratios: Optional[List[float]]) -> Tuple[Dataset, Optional[Dataset], Dataset]:
-        ...
-
 
 class DatasetLauncher(Dataset):
     """One split of DatasetWrapper

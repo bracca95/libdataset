@@ -1,11 +1,11 @@
 import os
 import torch
 
+from abc import abstractmethod
 from PIL import Image
-from glob import glob
-from typing import List, Tuple, Optional
+from typing import Optional, Tuple, Set, List, Callable
 from torch.utils.data import Dataset
-from torchvision.transforms import transforms
+from torchvision.transforms import transforms, Compose
 
 from ..dataset import DatasetWrapper, DatasetLauncher
 from ...utils.tools import Logger, Tools
@@ -13,35 +13,43 @@ from ...utils.config_parser import DatasetConfig
 from ....config.consts import General as _CG
 
 
-class MiniImagenet(DatasetWrapper):
-    """MiniImagenet
+class FewShotDataset(DatasetWrapper):
+    """FSL datasets managed with ImageFolder
 
-    This class takes for granted that:
-        * each class is represented by a directory (100 classes)
-        * each directory contains 600 samples
-        * all the (100) class directories are located under the same root 
-
+    Current available datasets (in my hosts):
+        - CIFAR-FS
+        - miniImagenet
+        - CUB (originally not intended for FSL, I provided my splits)
+    
     SeeAlso:
-        [main page](https://github.com/fiveai/on-episodes-fsl)
-        [splits](https://github.com/mileyan/simple_shot/tree/master/split/mini)
-        [download](https://drive.google.com/open?id=0B3Irx3uQNoBMQ1FlNXJsZUdYWEE)
+        [CIFAR-FS main page](https://github.com/bertinetto/r2d2)
+        [CIFAR-FS downlaod](https://drive.google.com/file/d/1pTsCCMDj45kzFYgrnO67BWVbKs48Q3NI/view?usp=sharing)
+        [miniImagenet main page](https://github.com/fiveai/on-episodes-fsl)
+        [miniImagenet download](https://drive.google.com/open?id=0B3Irx3uQNoBMQ1FlNXJsZUdYWEE)
+        [miniImagenet split](https://github.com/mileyan/simple_shot/tree/master/split/mini)
+        [CUB](https://www.vision.caltech.edu/datasets/cub_200_2011/))
     """
-
-    N_IMG_PER_CLASS = 600
-    N_CLASSES_TRAIN = 64
-    N_CLASSES_VAL = 16
-    N_CLASSES_TEST = 20
 
     def __init__(self, dataset_config: DatasetConfig):
         super().__init__()
         self.dataset_config = dataset_config
+        
         self._image_list = self.get_image_list(None)
         self._label_list = self.get_label_list()
-        self._train_dataset, self._val_dataset, self._test_dataset = self.split_dataset()
-
-    def get_image_list(self, filt: Optional[List[str]]) -> List[str]:
-        return glob(os.path.join(self.dataset_config.dataset_path, "n*", "*JPEG"))
+        self._train_dataset, self._val_dataset, self._test_dataset = self.split_dataset(self.split_method)
     
+    @abstractmethod
+    def get_image_list(self, filt: Optional[List[str]]) -> List[str]:
+        ...
+
+    @abstractmethod
+    def split_method(self) -> Tuple[Set[str], Set[str], Set[str]]:
+        ...
+
+    @abstractmethod
+    def expected_length(self):
+        ...
+
     def get_label_list(self) -> List[int]:
         if self.image_list is None:
             self.image_list = self.get_image_list(None)
@@ -53,7 +61,7 @@ class MiniImagenet(DatasetWrapper):
 
         # use mapping to return an int for the corresponding str label
         return [self.label_to_idx[os.path.basename(os.path.dirname(image_name))] for image_name in self.image_list]
-    
+
     def load_image(self, path: str, augment: bool) -> torch.Tensor:
         img_pil = Image.open(path).convert("RGB")
 
@@ -72,10 +80,11 @@ class MiniImagenet(DatasetWrapper):
 
         return img
     
-    def split_dataset(self, split_ratios: List[float]=[.8]) -> Tuple[DatasetLauncher, Optional[DatasetLauncher], DatasetLauncher]:
+    def split_dataset(self, split_method: Callable) -> Tuple[DatasetLauncher, Optional[DatasetLauncher], DatasetLauncher]:
         # get split
+        class_train, class_val, class_test = split_method()
+        
         tensor_labels = torch.tensor(self.label_list, dtype=torch.int)
-        class_train, class_val, class_test = self._parse_split_csv(None)
         
         # select the images where indices corresponds to train/val/test classes
         def select_img_lbl(class_set: set) -> Tuple[List[str], List[int]]:
@@ -103,26 +112,7 @@ class MiniImagenet(DatasetWrapper):
                 val_dataset = None
                 
         return train_dataset, val_dataset, test_dataset
-    
-    def _expected_length(self) -> int:
-        return (self.N_CLASSES_TRAIN + self.N_CLASSES_TEST + self.N_CLASSES_VAL) * self.N_IMG_PER_CLASS
-    
-    def _parse_split_csv(self, path: Optional[str]):
-        import pandas as pd
 
-        if path is None:
-            path = os.path.join(os.path.dirname(self.dataset_config.dataset_path), "preprocessing", "miniimagenet", "ultimate_split")
-            Logger.instance().debug(f"No path to csv split provided, trying to use default at {path}")
-        
-        path = Tools.validate_path(path)
-
-        def get_class_set(split_name: str):
-            split_path = Tools.validate_path(os.path.join(path, f"{split_name}.csv"))
-            df = pd.read_csv(split_path)
-            return set(df["label"].values)
-        
-        return get_class_set("train"), get_class_set("val"), get_class_set("test")
-    
     @property
     def image_list(self) -> List[str]:
         return self._image_list

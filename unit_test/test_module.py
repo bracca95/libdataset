@@ -8,6 +8,7 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 project_root = os.path.abspath(os.path.dirname(os.path.dirname(current_dir)))
 sys.path.insert(0, project_root)
 
+from glass_defect_dataset.src.datasets.dataset import DatasetLauncher
 from glass_defect_dataset.src.datasets.dataset_utils import DatasetBuilder, YoloDatasetBuilder
 from glass_defect_dataset.src.utils.config_parser import read_from_json, write_to_json
 from glass_defect_dataset.src.utils.tools import Logger
@@ -42,7 +43,7 @@ if __name__=="__main__":
     # compute mean and variance of the dataset if not done yet
     if config.normalize and config.dataset_mean is None and config.dataset_std is None:
         Logger.instance().warning("No mean and std set: computing and storing values.")
-        mean, std = dataset.compute_mean_std(dataset.train_dataset, config.dataset_type)
+        mean, std = DatasetLauncher.compute_mean_std(dataset.train_dataset, config.dataset_type)
         config.dataset_mean = mean.tolist()
         config.dataset_std = std.tolist()
         write_to_json(config, os.getcwd(), "config/config.json")

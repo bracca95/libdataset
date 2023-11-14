@@ -5,9 +5,9 @@ from .dataset import DatasetWrapper
 from .other.glass_plate import GlassPlate, GlassPlateTrainYolo, GlassPlateTestYolo
 from .custom.defectviews import GlassOpt, GlassOptBckg, GlassOptTricky, GlassOptDouble, GlassOptDoubleInference, BubblePoint, QPlusV1, QPlusV2, QPlusDouble
 from .custom.omniglot import OmniglotWrapper
-from .custom.miniimagenet import MiniImagenet
-from .custom.cifar import CifarFs
-from .custom.cub import Cub
+from .fsl.miniimagenet import MiniImagenet
+from .fsl.cifar import CifarFs
+from .fsl.cub import Cub
 from .torch.celeba import CelebaWrapper
 from ..utils.config_parser import DatasetConfig
 from ..utils.tools import Logger
