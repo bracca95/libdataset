@@ -45,20 +45,20 @@ class DatasetBuilder:
             Logger.instance().info("Loading dataset BubblePoint (type GlassOpt)")
             return BubblePoint(dataset_config)
         elif dataset_config.dataset_type == "omniglot":
-            Logger.instance().info("Loading dataset Omniglot (type DatasetWrapper)")
+            Logger.instance().info("Loading dataset Omniglot (type FewShotDataset)")
             return OmniglotWrapper(dataset_config)
-        elif dataset_config.dataset_type == "celeba":
-            Logger.instance().info("Loading dataset Omniglot (type DatasetWrapper)")
-            return CelebaWrapper(dataset_config)
         elif dataset_config.dataset_type == "miniimagenet":
-            Logger.instance().info("Loading dataset Mini Imagenet (type DatasetWrapper)")
+            Logger.instance().info("Loading dataset Mini Imagenet (type FewShotDataset)")
             return MiniImagenet(dataset_config)
         elif dataset_config.dataset_type == "cifar_fs":
-            Logger.instance().info("Loading dataset CIFAR-FS (type DatasetWrapper)")
+            Logger.instance().info("Loading dataset CIFAR-FS (type FewShotDataset)")
             return CifarFs(dataset_config)
         elif dataset_config.dataset_type == "cub":
-            Logger.instance().info("Loading dataset CUB (type DatasetWrapper)")
+            Logger.instance().info("Loading dataset CUB (type FewShotDataset)")
             return Cub(dataset_config)
+        elif dataset_config.dataset_type == "celeba":
+            Logger.instance().info("Loading dataset Omniglot (type Dataset)")
+            return CelebaWrapper(dataset_config)
         else:
             raise ValueError(
                 "values allowed: {`opt6`, `opt_bckg`, `opt_double`, `opt_double_inference`, `binary`, `qplusv1`, " +

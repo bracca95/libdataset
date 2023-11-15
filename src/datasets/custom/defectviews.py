@@ -3,11 +3,11 @@ import torch
 
 from PIL import Image
 from glob import glob
-from typing import List
+from typing import Callable, List
 from torchvision import transforms
 
 from .custom_dataset import CustomDataset
-from ..dataset import DatasetLauncher
+from ..dataset import DatasetLauncher, InferenceLauncher
 from ...imgproc import Processing
 from ...utils.tools import Logger, Tools
 from ...utils.config_parser import DatasetConfig
@@ -44,15 +44,6 @@ class GlassOpt(CustomDataset):
     def __init__(self, dataset_config: DatasetConfig):
         self.augment_strategy = Processing.offline_transforms_v2
         super().__init__(dataset_config)
-
-    def __getitem__(self, index):
-        curr_img_batch = self.image_list[index]
-        curr_label_batch = self.label_list[index]
-        
-        return self.load_image(curr_img_batch), curr_label_batch
-
-    def __len__(self):
-        return len(self.image_list) # type: ignore
 
     def get_image_list(self, filt: List[str]) -> List[str]:
         """Read all the filenames in the dataset directory
@@ -99,7 +90,7 @@ class GlassOpt(CustomDataset):
         return [self.label_to_idx[defect] for defect in label_list]
         
 
-    def load_image(self, path: str) -> torch.Tensor:
+    def load_image(self, path: str, augment: bool) -> torch.Tensor:
         """Load image as tensor
 
         This will be used in the trainloader only. Read the image, crop it, resize it (if required in config), make it
@@ -118,6 +109,10 @@ class GlassOpt(CustomDataset):
         """
         
         img_pil = Image.open(path).convert("L")
+
+        if augment:
+            # TODO implement
+            pass
 
         # crop
         # augmented images are already square-shaped, do not crop!
@@ -271,7 +266,7 @@ class GlassOptDouble(GlassOpt):
     def __init__(self, dataset_config: DatasetConfig):
         super().__init__(dataset_config)
 
-    # TODO: image aumentation. For the moment, avoid augmentation as in Tricky (augs are random, must apply the same to both channels)
+    # TODO: offline aumentation. For the moment, avoid augmentation as in Tricky (augs are random, must apply the same to both channels)
     def get_image_list(self, filt: List[str]) -> List[str]:
         image_list = glob(os.path.join(self.dataset_config.dataset_path, "*.png"))
         image_list = list(filter(lambda x: x.endswith("vid_1.png"), image_list))
@@ -284,7 +279,7 @@ class GlassOptDouble(GlassOpt):
 
         return image_list
     
-    def load_image(self, path: str) -> torch.Tensor:
+    def load_image(self, path: str, augment: bool) -> torch.Tensor:
         path_2 = path.replace("_vid_1.png", "_vid_2.png")
 
         img_pil_1 = Image.open(path).convert("L")
@@ -294,6 +289,10 @@ class GlassOptDouble(GlassOpt):
         # root = "/media/lorenzo/M/datasets/dataset_opt/2.2_dataset_opt/dmx_2c/test_samples_1"
         # img_pil_1.save(os.path.join(root, os.path.basename(path)))
         # img_pil_2.save(os.path.join(root, os.path.basename(path_2)))
+
+        if augment:
+            # TODO implement
+            pass
 
         # crop
         if not Tools.check_string(os.path.basename(path), self.NO_CROP, False, False):
@@ -326,13 +325,7 @@ class GlassOptDoubleInference(GlassOptDouble):
 
     def __init__(self, dataset_config: DatasetConfig):
         super().__init__(dataset_config)
-
-    def __getitem__(self, index):
-        curr_img_batch = self.image_list[index]
-        curr_label_batch = self.label_list[index]
-        
-        return self.load_image(curr_img_batch), curr_label_batch, curr_img_batch
-    
+        self.test_dataset = InferenceLauncher(self.test_dataset.image_list, self.test_dataset.label_list, False, self.load_image)
 
 class QPlusDouble(GlassOptDouble):
 

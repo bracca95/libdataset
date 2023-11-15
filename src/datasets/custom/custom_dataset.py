@@ -51,7 +51,7 @@ class CustomDataset(DatasetWrapper):
         split_ratios = self.dataset_config.dataset_splits
         self._train_dataset, self._val_dataset, self._test_dataset = self.split_dataset(split_ratios)
 
-    def split_dataset(self, split_ratios: List[float]=[.8]) -> Tuple[Dataset, Optional[Dataset], Dataset]:
+    def split_dataset(self, split_ratios: List[float]=[.8]) -> Tuple[DatasetLauncher, Optional[DatasetLauncher], DatasetLauncher]:
         """Split a dataset into train, (val), test
 
         Split a dataset into two or three parts, trying to account for a balanced number of samples for each class.
@@ -135,6 +135,10 @@ class CustomDataset(DatasetWrapper):
     
     def load_image(self, path: str, augment: bool) -> torch.Tensor:
         img_pil = Image.open(path).convert("RGB")
+
+        if augment:
+            # TODO implement
+            pass
         
         # resize
         img_pil = transforms.Resize((self.dataset_config.image_size, self.dataset_config.image_size))(img_pil)

@@ -5,7 +5,7 @@ from abc import abstractmethod
 from PIL import Image
 from typing import Optional, Tuple, Set, List, Callable
 from torch.utils.data import Dataset
-from torchvision.transforms import transforms, Compose
+from torchvision.transforms import transforms
 
 from ..dataset import DatasetWrapper, DatasetLauncher
 from ...utils.tools import Logger, Tools

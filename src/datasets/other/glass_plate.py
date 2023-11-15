@@ -288,16 +288,17 @@ class GlassPlate:
 
     def __init__(self, dataset_config: DatasetConfig):
         self.dataset_config = dataset_config
+        self._dataset_opt_main = "/media/lorenzo/M/datasets/dmx/dataset_opt"
         
         # get names of each channel, grouping by plate
-        self.all_dataset_images = glob(os.path.join(self.dataset_config.dataset_path, "202*", "*.png"))
+        self.all_dataset_images = glob(os.path.join(self._dataset_opt_main, "202*", "*.png"))
         self.plate_name_set = set(map(lambda x: x.rsplit("_", 1)[0], self.all_dataset_images))
 
         # read csv by filtering classes and returning
         csv_relative_path = "2.4_dataset_opt/riclassified/bounding_boxes.csv"
         if SaveDefects.active:
             csv_relative_path = SaveDefects.csv_relative_path
-        self._dataset_csv = os.path.join(self.dataset_config.dataset_path, csv_relative_path)
+        self._dataset_csv = os.path.join(self._dataset_opt_main, csv_relative_path)
         self._df = self._parse_csv(self.all_dataset_images, filt=None)
 
     def _parse_csv(self, available_images: List[str], filt: Optional[List[str]]=None) -> pd.DataFrame:
@@ -334,7 +335,7 @@ class GlassPlate:
         df[to_int_cols] = df[to_int_cols].astype(int)
 
         # replace path
-        df[_CH.COL_IMG_NAME] = df[_CH.COL_IMG_NAME].apply(lambda x: os.path.join(self.dataset_config.dataset_path, f"{os.sep}".join(x.rsplit(os.sep, -1)[-2:])))
+        df[_CH.COL_IMG_NAME] = df[_CH.COL_IMG_NAME].apply(lambda x: os.path.join(self._dataset_opt_main, f"{os.sep}".join(x.rsplit(os.sep, -1)[-2:])))
 
         # class filters
         if filt is not None:

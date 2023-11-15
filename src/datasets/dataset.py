@@ -77,7 +77,7 @@ class DatasetLauncher(Dataset):
         self.info_dict = info
 
     @staticmethod
-    def compute_mean_std(dataset: Dataset, ds_type: str="") -> Tuple[torch.Tensor, torch.Tensor]:
+    def compute_mean_std(dataset: Dataset, ds_type: str) -> Tuple[torch.Tensor, torch.Tensor]:
         if "imagenet" in ds_type or "cifar" in ds_type:
             Logger.instance().debug(f"Dataset type is {ds_type}: imagenet mean/std selected")
             return torch.Tensor([0.485, 0.456, 0.406]), torch.Tensor([0.229, 0.224, 0.225])
@@ -145,3 +145,19 @@ class DatasetLauncher(Dataset):
 
         grid_pil = transforms.ToPILImage()(img_grid)
         grid_pil.save(os.path.join(outfolder, "sample_batch.png"))
+
+
+class InferenceLauncher(DatasetLauncher):
+    """Only used in GlassOptDoubleInference
+
+    This is a custom launcher to retrieve the image paths
+    """
+
+    def __init__(self, image_list: List[str], label_list: List[int], augment: bool, load_img_callback: Callable[[str, bool], torch.Tensor]):
+        super().__init__(image_list, label_list, augment, load_img_callback)
+
+    def __getitem__(self, index):
+        curr_img_batch = self.image_list[index]
+        curr_label_batch = self.label_list[index]
+        
+        return self.load_img_callback(curr_img_batch, False), curr_label_batch, curr_img_batch
