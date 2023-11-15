@@ -4,7 +4,7 @@ from torch.utils.data import Dataset
 from .dataset import DatasetWrapper
 from .other.glass_plate import GlassPlate, GlassPlateTrainYolo, GlassPlateTestYolo
 from .custom.defectviews import GlassOpt, GlassOptBckg, GlassOptTricky, GlassOptDouble, GlassOptDoubleInference, BubblePoint, QPlusV1, QPlusV2, QPlusDouble
-from .custom.omniglot import OmniglotWrapper
+from .fsl.omniglot import OmniglotWrapper
 from .fsl.miniimagenet import MiniImagenet
 from .fsl.cifar import CifarFs
 from .fsl.cub import Cub
