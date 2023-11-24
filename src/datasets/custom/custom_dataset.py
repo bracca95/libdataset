@@ -99,6 +99,8 @@ class CustomDataset(DatasetWrapper):
         # split each class into three parts based on percentages
         split_indices = {}
         for label, indices in class_indices.items():
+            # exception for 0-sized tensor
+            if indices.ndimension() == 0: indices = torch.tensor([indices.item()])
             permuted_indices = indices[torch.randperm(len(indices))]
 
             train_size = int(split_ratios[0] * len(permuted_indices))
