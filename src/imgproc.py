@@ -5,9 +5,20 @@ from PIL import Image
 from PIL.Image import Image as PilImgType
 from tqdm import tqdm
 from typing import Optional, List, Callable
-from torchvision import transforms
+from torchvision.transforms import transforms
 
 from .utils.tools import Logger
+
+
+class ConditionalRandomCrop:
+    def __init__(self, size: int):
+        self.size = size
+
+    def __call__(self, img: PilImgType):
+        if min(img.size) >= self.size:
+            return transforms.RandomCrop(self.size)(img)
+        else:
+            return img
 
 
 class Processing:
@@ -75,6 +86,13 @@ class Processing:
             img = img.rotate(90 * n_rot, expand=True)
         
         return img
+    
+    @staticmethod
+    def rotate_lambda(deg: int, p: float=0.5) -> torch.nn.Module:
+        if torch.rand(1) < p:
+            return transforms.RandomRotation(degrees=deg)
+        
+        return torch.nn.Identity()
     
     @staticmethod
     def store_augmented_images(img_list: List[str], new_dir: str, iters: int, aug_fun: Callable[[PilImgType], PilImgType]):
