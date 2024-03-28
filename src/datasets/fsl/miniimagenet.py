@@ -41,7 +41,7 @@ class MiniImagenet(FewShotDataset):
     def split_method(self) -> Tuple[Set[str], Set[str], Set[str]]:
         import pandas as pd
 
-        path = os.path.join(os.path.dirname(self.dataset_config.dataset_path), "preprocessing", "miniimagenet", "ultimate_split")
+        path = os.path.join(os.path.abspath(__file__).rsplit("src", 1)[0], "splits", "miniimagenet")
         path = Tools.validate_path(path)
 
         def get_class_set(split_name: str):

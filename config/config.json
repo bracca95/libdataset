@@ -1,14 +1,14 @@
 {
-    "dataset_path": "/media/lorenzo/M/datasets/omniglot-py",
-    "dataset_type": "omniglot",
+    "dataset_path": "/media/lorenzo/D/datasets/miniimagenet",
+    "dataset_type": "miniimagenet",
     "dataset_splits": [
         0.7,
-        0.0,
-        0.3
+        0.1,
+        0.2
     ],
     "normalize": false,
-    "crop_size": 60,
-    "image_size": 105,
+    "crop_size": 224,
+    "image_size": 224,
     "augment_online": null,
     "augment_offline": null,
     "dataset_mean": null,
