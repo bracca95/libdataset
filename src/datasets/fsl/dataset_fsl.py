@@ -8,6 +8,7 @@ from torch.utils.data import Dataset
 from torchvision.transforms import transforms
 
 from ..dataset import DatasetWrapper, DatasetLauncher
+from ...imgproc import Processing
 from ...utils.tools import Logger, Tools
 from ...utils.config_parser import DatasetConfig
 from ....config.consts import General as _CG
@@ -65,20 +66,39 @@ class FewShotDataset(DatasetWrapper):
     def load_image(self, path: str, augment: bool) -> torch.Tensor:
         img_pil = Image.open(path).convert("RGB")
 
+        img_list = []
         if augment:
-            # TODO implement
-            pass
+            # augmentation perfomed to return 10 different variations of the same image
+            transform_list = [
+                transforms.RandomResizedCrop(self.dataset_config.image_size, scale=(0.2, 0.8)), # ConditionalRandomCrop(64)
+                Processing.rotate_lambda(deg=60, p=1.0),
+                transforms.RandomHorizontalFlip(p=1.0),
+                transforms.Grayscale(num_output_channels=3),
+                transforms.ColorJitter(0.2, 0.2, 0.2, 0.1),
+                transforms.GaussianBlur(3),
+                transforms.RandomAffine(degrees=0, shear=[-45, 45, -45, 45])
+            ]
+
+            random_transforms = [transforms.RandomChoice(transform_list) for _ in range(10)]
+
+            img_list = [aug_method(img_pil) for aug_method in random_transforms]
         
-        # resize
-        img_pil = transforms.Resize((self.dataset_config.image_size, self.dataset_config.image_size))(img_pil)
+        # basic operations: always performed
+        basic_transf = transforms.Compose([
+            transforms.Resize((self.dataset_config.image_size, self.dataset_config.image_size)),
+            transforms.ToTensor(),
+            DatasetLauncher.normalize_or_identity(self.dataset_config)
+        ])
 
-        # rescale [0-255](int) to [0-1](float)
-        img = transforms.ToTensor()(img_pil)
+        # basic case
+        if len(img_list) < 1:
+            return basic_transf(img_pil)
+        
+        # return augmented stacked images
+        augmented_images = [basic_transf(curr_img) for curr_img in img_list]
+        augmented_images = torch.stack(augmented_images, dim=0)
 
-        # normalize
-        img = DatasetLauncher.normalize_or_identity(self.dataset_config)(img)
-
-        return img
+        return augmented_images
     
     def split_dataset(self, split_method: Callable) -> Tuple[DatasetLauncher, Optional[DatasetLauncher], DatasetLauncher]:
         # get split
