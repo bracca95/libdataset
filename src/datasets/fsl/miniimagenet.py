@@ -16,12 +16,15 @@ class MiniImagenet(FewShotDataset):
     This class takes for granted that:
         * each class is represented by a directory (100 classes)
         * each directory contains 600 samples
-        * all the (100) class directories are located under the same root 
+        * all the (100) class directories are located under the same root
+    
+    Download the file from kaggle since it contains the images at their original size with the original names (they
+    follow the same filename structure as ILSVRC).
 
     SeeAlso:
         [main page](https://github.com/fiveai/on-episodes-fsl)
         [splits](https://github.com/mileyan/simple_shot/tree/master/split/mini)
-        [download](https://drive.google.com/open?id=0B3Irx3uQNoBMQ1FlNXJsZUdYWEE)
+        [download](https://www.kaggle.com/datasets/arjunashok33/miniimagenet)
     """
 
     N_IMG_PER_CLASS = 600

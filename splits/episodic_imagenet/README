@@ -1,0 +1,3 @@
+Requires `ilsvrc_cleaned.txt`
+
+Follow https://github.com/bracca95/imagenet2mini-labels to generate it.

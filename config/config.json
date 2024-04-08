@@ -1,6 +1,6 @@
 {
-    "dataset_path": "/media/lorenzo/D/datasets/miniimagenet",
-    "dataset_type": "miniimagenet",
+    "dataset_path": "/media/lorenzo/D/datasets/ILSVRC",
+    "dataset_type": "episodic_imagenet",
     "dataset_splits": [
         0.7,
         0.1,
