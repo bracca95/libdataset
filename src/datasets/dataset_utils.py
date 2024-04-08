@@ -6,6 +6,7 @@ from .other.glass_plate import GlassPlate, GlassPlateTrainYolo, GlassPlateTestYo
 from .custom.defectviews import GlassOpt, GlassOptBckg, GlassOptTricky, GlassOptDouble, GlassOptDoubleInference, BubblePoint, QPlusV1, QPlusV2, QPlusDouble
 from .fsl.omniglot import OmniglotWrapper
 from .fsl.episodic_imagenet import EpisodicImagenet
+from .fsl.episodic_imagenet1k import EpisodicImagenet1k
 from .fsl.miniimagenet import MiniImagenet
 from .fsl.cifar import CifarFs
 from .fsl.cub import Cub
@@ -51,6 +52,9 @@ class DatasetBuilder:
         elif dataset_config.dataset_type == "episodic_imagenet":
             Logger.instance().info("Loading dataset EpisodicImagenet (type FewShotDataset)")
             return EpisodicImagenet(dataset_config)
+        elif dataset_config.dataset_type == "episodic_imagenet1k":
+            Logger.instance().info("Loading dataset EpisodicImagenet1k (type FewShotDataset)")
+            return EpisodicImagenet1k(dataset_config)
         elif dataset_config.dataset_type == "miniimagenet":
             Logger.instance().info("Loading dataset Mini Imagenet (type FewShotDataset)")
             return MiniImagenet(dataset_config)

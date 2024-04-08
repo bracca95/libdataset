@@ -12,26 +12,23 @@ from ...utils.config_parser import DatasetConfig
 from ....config.consts import General as _CG
 
 
-class EpisodicImagenet(FewShotDataset):
+class EpisodicImagenet1k(FewShotDataset):
     """EpisodicImagenet
 
-    Provide a meta-learning split for imagenet so that the training set classes do not overlap the val/test classes
-    from miniimagenet. Use miniimagenet to val/test splits. The expected input folder (root) should be at ILSVRC
-    (included) and it must contain the following subfolders: 'ILSVER/Data/CLS-LOC/train'.
+    Use all the training samples included in the training set of imagenet-1k to replicate the results of CAML. They were
+    not supposed to use all the classes if the test were to be made on miniimagenet because the images are the same, but
+    we need this to replicate.
+    The val and test set are still extracted from miniimagenet.
 
     SeeAlso:
-        [repo](https://github.com/bracca95/imagenet2mini-labels)
+        - [CAML](https://arxiv.org/abs/2310.10971)
     """
 
-    MINI_N_IMG_PER_CLASS = 600
-    MINI_N_CLASSES_VAL = 16
-    MINI_N_CLASSES_TEST = 20
-    ILSVRC_N_TRAIN_IMGS = 1234487
+    ILSVRC_N_IMGS = 1281167
 
     def __init__(self, dataset_config: DatasetConfig):
         # must be init!!
         self.root_ilsvrc: str = str()
-        self.root_mini: str = str()
         self.split_dir: str = os.path.join(os.path.abspath(__file__).rsplit("src", 1)[0], "splits")
         self.train_labels: Set[str] = set()
 
@@ -39,17 +36,6 @@ class EpisodicImagenet(FewShotDataset):
 
     def get_image_list(self, filt: Optional[List[str]]) -> List[str]:
         ## imagenet train ##
-
-        # 1. manage error: missing "clean" version of imagenet-1k and/or train labels
-        try:
-            split_1k = Tools.validate_path(os.path.join(self.split_dir, "episodic_imagenet"))
-            if not os.path.exists(os.path.join(split_1k, "ilsvrc_cleaned.txt")):
-                raise FileNotFoundError(
-                    f"File 'ilsvrc_cleaned.txt should exist. Check https://github.com/bracca95/imagenet2mini-labels"
-                )
-        except FileNotFoundError as fnf:
-            Logger.instance().critical(f"{fnf.args}")
-            sys.exit(-1)
         
         # 2. manage error: imagenet-1k directory structure
         rltv_err: str = str()
@@ -76,38 +62,22 @@ class EpisodicImagenet(FewShotDataset):
             raise ValueError(full_err)
 
         ## miniimagenet val/test ##
-        # 3. manage error: miniimagenet is missing
+        # 2. manage error: miniimagenet is missing
         try:
             self.root_mini = os.path.join(os.path.dirname(self.dataset_config.dataset_path), "miniimagenet")
             self.root_mini = Tools.validate_path(self.root_mini)
         except FileNotFoundError as fnf:
             Logger.instance().critical(f"Where is 'miniimagenet' dataset? Put is at the same level as ILSVRC {fnf.args}")
             sys.exit(-1)
-
-        # everything should be ok up to this point
         
-        # read imagenet-1k images stripped of imagenet trainig set, also get unique train labels (required later)
-        with open(os.path.join(split_1k, "ilsvrc_cleaned.txt"), "r") as f:
-            ilsvrc_img_paths: List[str] = list()
-            for l in f:
-                if l.strip():
-                    label = l.strip().split("_")[0]
-                    ilsvrc_img_paths.append(os.path.join(self.root_ilsvrc, label, l.strip()))
-                    self.train_labels.add(label)
+        # read imagenet-1k images: they also include miniimagenet val/test
+        ilsvrc_img_paths = glob(os.path.join(self.root_ilsvrc, "n*", "*JPEG"))
+        self.train_labels = set(list(map(lambda x: os.path.basename(os.path.dirname(x)), ilsvrc_img_paths)))
 
-        # filter training images on miniimagenet
-        mini_img_paths = glob(os.path.join(self.root_mini, "n*", "*JPEG"))
-        old_train_mini_csv = Tools.validate_path(os.path.join(self.split_dir, "miniimagenet", "train.csv"))
-        df_train = pd.read_csv(old_train_mini_csv)
-        old_train_mini = set(df_train["label"].values)
-        mini_img_paths = list(filter(
-            lambda x: not any(os.path.basename(os.path.dirname(x)) == c for c in old_train_mini), mini_img_paths
-        ))
-
-        return ilsvrc_img_paths + mini_img_paths
+        return ilsvrc_img_paths
     
     def expected_length(self) -> int:
-        return self.ILSVRC_N_TRAIN_IMGS + (self.MINI_N_CLASSES_TEST + self.MINI_N_CLASSES_VAL) * self.MINI_N_IMG_PER_CLASS
+        return self.ILSVRC_N_IMGS
     
     def split_method(self) -> Tuple[Set[str], Set[str], Set[str]]:
         split_mini = Tools.validate_path(os.path.join(self.split_dir, "miniimagenet"))

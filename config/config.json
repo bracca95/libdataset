@@ -1,6 +1,6 @@
 {
     "dataset_path": "/media/lorenzo/D/datasets/ILSVRC",
-    "dataset_type": "episodic_imagenet",
+    "dataset_type": "episodic_imagenet1k",
     "dataset_splits": [
         0.7,
         0.1,
