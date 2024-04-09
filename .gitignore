@@ -13,6 +13,7 @@ nohup.out
 
 # extensions
 *.txt
+!splits/cifar_fs/*.txt
 *.pt
 *.pth
 *.pyc

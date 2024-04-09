@@ -1,4 +1,5 @@
 import os
+import sys
 
 from glob import glob
 from typing import List, Set, Tuple, Optional
@@ -25,47 +26,45 @@ class CifarFs(FewShotDataset):
     N_CLASSES_TRAIN = 64
     N_CLASSES_VAL = 16
     N_CLASSES_TEST = 20
-
-    META_TRAIN = "meta_train"
-    META_TEST = "meta_test"
-    META_VAL = "meta_val"
+    DIR_DATA = "data"
+    DIR_SPLITS = "splits"
+    DIR_BERTINETTO = "bertinetto"
 
     def __init__(self, dataset_config: DatasetConfig):
-        self.dataset_config = dataset_config
-        self.train_dir = Tools.validate_path(os.path.join(self.dataset_config.dataset_path, self.META_TRAIN))
-        self.val_dir = Tools.validate_path(os.path.join(self.dataset_config.dataset_path, self.META_VAL))
-        self.test_dir = Tools.validate_path(os.path.join(self.dataset_config.dataset_path, self.META_TEST))
-        self._check_meta_split()
-        
+        self.data_dir, self.label_dir = self.__check_dataset_struct(dataset_config)
         super().__init__(dataset_config)
 
     def get_image_list(self, filt: Optional[List[str]]) -> List[str]:
-        img_train = glob(os.path.join(self.train_dir, "*", "*.png"))
-        img_val = glob(os.path.join(self.val_dir, "*", "*.png"))
-        img_test = glob(os.path.join(self.test_dir, "*", "*.png"))
-
-        if not len(img_train) + len(img_val) + len(img_test) == self.expected_length():
-            raise ValueError(f"There should be 600 images in all the 100 CIFAR classes.")
-
-        return img_train + img_val + img_test
+        return glob(os.path.join(self.data_dir, "*", "*png"))
     
     def split_method(self) -> Tuple[Set[str], Set[str], Set[str]]:
-        class_train = set(filter(lambda x: os.path.isdir(os.path.join(self.train_dir, x)), os.listdir(self.train_dir)))
-        class_val = set(filter(lambda x: os.path.isdir(os.path.join(self.val_dir, x)), os.listdir(self.val_dir)))
-        class_test = set(filter(lambda x: os.path.isdir(os.path.join(self.test_dir, x)), os.listdir(self.test_dir)))
+        def get_class_set(split_name: str):
+            split_path = Tools.validate_path(os.path.join(self.label_dir, f"{split_name}.txt"))
+            with open(split_path, "r") as f:
+                labels = [l.strip() for l in f if l.strip()]
+            
+            return set(labels)
 
-        if not len(class_train) == CifarFs.N_CLASSES_TRAIN or \
-           not len(class_val) == CifarFs.N_CLASSES_VAL or \
-           not len(class_test) == CifarFs.N_CLASSES_TEST:
-            raise ValueError(f"Some class is missing in cifar-fs directory or it has been filtered.")
-        
-        return class_train, class_val, class_test
+        return get_class_set("train"), get_class_set("val"), get_class_set("test")
 
     def expected_length(self) -> int:
         return (CifarFs.N_CLASSES_TRAIN + CifarFs.N_CLASSES_TEST + CifarFs.N_CLASSES_VAL) * CifarFs.N_IMG_PER_CLASS
     
-    def _check_meta_split(self):
-        if not set([self.META_TRAIN, self.META_TEST]) <= set(os.listdir(self.dataset_config.dataset_path)):
-            msg = f"'meta_train' and/or 'meta_test' dir/s missing in {self.dataset_config.dataset_path}"
-            Logger.instance().error(msg)
-            raise ValueError(msg)
+    @staticmethod
+    def __check_dataset_struct(dataset_config: DatasetConfig) -> Tuple[str, str]:
+        try:
+            data_dir = Tools.validate_path(os.path.join(dataset_config.dataset_path, CifarFs.DIR_DATA))
+        except FileNotFoundError as fnf:
+            Logger.instance().critical(f"`data` folder is supposed to be found in the dataset root directory. {fnf}")
+            sys.exit(-1)
+
+        try:
+            label_dir = os.path.join(dataset_config.dataset_path, CifarFs.DIR_SPLITS, CifarFs.DIR_BERTINETTO)
+            label_dir = Tools.validate_path(label_dir)
+        except FileNotFoundError as fnf:
+            Logger.instance().warning(f"{label_dir} not found, looking for $PROJ/splits/cifar_fs")
+            label_dir = os.path.join(os.path.abspath(__file__).rsplit("src", 1)[0], "splits", "cifar_fs")
+            if not os.path.exists(label_dir):
+                raise FileNotFoundError(f"Local {label_dir} was not provided")
+            
+        return data_dir, label_dir
