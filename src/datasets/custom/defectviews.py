@@ -3,7 +3,7 @@ import torch
 
 from PIL import Image
 from glob import glob
-from typing import Callable, List
+from typing import Optional, Callable, List
 from torchvision import transforms
 
 from .custom_dataset import CustomDataset
@@ -90,7 +90,7 @@ class GlassOpt(CustomDataset):
         return [self.label_to_idx[defect] for defect in label_list]
         
 
-    def load_image(self, path: str, augment: bool) -> torch.Tensor:
+    def load_image(self, path: str, augment: Optional[List[str]]) -> torch.Tensor:
         """Load image as tensor
 
         This will be used in the trainloader only. Read the image, crop it, resize it (if required in config), make it
@@ -110,8 +110,8 @@ class GlassOpt(CustomDataset):
         
         img_pil = Image.open(path).convert("L")
 
-        if augment:
-            # TODO implement
+        if augment is not None:
+            # TODO check if one of the strings corresponds to the augmentation required here. Implement augmentation.
             pass
 
         # crop
@@ -279,7 +279,7 @@ class GlassOptDouble(GlassOpt):
 
         return image_list
     
-    def load_image(self, path: str, augment: bool) -> torch.Tensor:
+    def load_image(self, path: str, augment: Optional[List[str]]) -> torch.Tensor:
         path_2 = path.replace("_vid_1.png", "_vid_2.png")
 
         img_pil_1 = Image.open(path).convert("L")
@@ -290,8 +290,8 @@ class GlassOptDouble(GlassOpt):
         # img_pil_1.save(os.path.join(root, os.path.basename(path)))
         # img_pil_2.save(os.path.join(root, os.path.basename(path_2)))
 
-        if augment:
-            # TODO implement
+        if augment is not None:
+            # TODO check if one of the strings corresponds to the augmentation required here. Implement augmentation.
             pass
 
         # crop
@@ -325,7 +325,12 @@ class GlassOptDoubleInference(GlassOptDouble):
 
     def __init__(self, dataset_config: DatasetConfig):
         super().__init__(dataset_config)
-        self.test_dataset = InferenceLauncher(self.test_dataset.image_list, self.test_dataset.label_list, False, self.load_image)
+        self.test_dataset = InferenceLauncher(
+            self.test_dataset.image_list,
+            self.test_dataset.label_list, 
+            augment=None,
+            load_img_callback=self.load_image
+        )
 
 class QPlusDouble(GlassOptDouble):
 

@@ -63,11 +63,11 @@ class FewShotDataset(DatasetWrapper):
         # use mapping to return an int for the corresponding str label
         return [self.label_to_idx[os.path.basename(os.path.dirname(image_name))] for image_name in self.image_list]
 
-    def load_image(self, path: str, augment: bool) -> torch.Tensor:
+    def load_image(self, path: str, augment: Optional[List[str]]) -> torch.Tensor:
         img_pil = Image.open(path).convert("RGB")
 
         img_list = []
-        if augment:
+        if augment is not None and "dataset" in [a.lower() for a in augment]:
             # augmentation perfomed to return 10 different variations of the same image
             transform_list = [
                 transforms.RandomResizedCrop(self.dataset_config.image_size, scale=(0.2, 0.8)), # ConditionalRandomCrop(64)
@@ -115,10 +115,10 @@ class FewShotDataset(DatasetWrapper):
             return images, labels
         
         # create DatasetLauncher with augmentation for training if required
-        augment = True if self.dataset_config.augment_online is not None else False
+        augment = self.dataset_config.augment_online
         train_dataset = DatasetLauncher(*select_img_lbl(class_train), augment, load_img_callback=self.load_image)
-        val_dataset = DatasetLauncher(*select_img_lbl(class_val), augment=False, load_img_callback=self.load_image)
-        test_dataset = DatasetLauncher(*select_img_lbl(class_test), augment=False, load_img_callback=self.load_image)
+        val_dataset = DatasetLauncher(*select_img_lbl(class_val), augment=None, load_img_callback=self.load_image)
+        test_dataset = DatasetLauncher(*select_img_lbl(class_test), augment=None, load_img_callback=self.load_image)
         
         # fill info dict
         train_dataset.set_info(select_img_lbl(class_train)[1], self.idx_to_label)

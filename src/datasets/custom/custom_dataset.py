@@ -114,8 +114,8 @@ class CustomDataset(DatasetWrapper):
         selected_val_indices = torch.cat([split_indices[label.item()][1] for label in torch.unique(label_tensor)], dim=0).tolist()
         selected_test_indices = torch.cat([split_indices[label.item()][2] for label in torch.unique(label_tensor)], dim=0).tolist()
 
-        augment = True if self.dataset_config.augment_online is not None else False
         # get the image paths and labels for each split and prepare datasets
+        augment = self.dataset_config.augment_online
         train_images = [self.image_list[i] for i in selected_train_indices]
         train_labels = [self.label_list[i] for i in selected_train_indices]
         train_dataset = DatasetLauncher(train_images, train_labels, augment, load_img_callback=self.load_image)
@@ -125,21 +125,21 @@ class CustomDataset(DatasetWrapper):
         if len(selected_val_indices) > 0:
             val_images = [self.image_list[i] for i in selected_val_indices]
             val_labels = [self.label_list[i] for i in selected_val_indices]
-            val_dataset = DatasetLauncher(val_images, val_labels, augment=False, load_img_callback=self.load_image)
+            val_dataset = DatasetLauncher(val_images, val_labels, augment=None, load_img_callback=self.load_image)
             val_dataset.set_info(val_labels, self.idx_to_label)
 
         test_images = [self.image_list[i] for i in selected_test_indices]
         test_labels = [self.label_list[i] for i in selected_test_indices]
-        test_dataset = DatasetLauncher(test_images, test_labels, augment=False, load_img_callback=self.load_image)
+        test_dataset = DatasetLauncher(test_images, test_labels, augment=None, load_img_callback=self.load_image)
         test_dataset.set_info(test_labels, self.idx_to_label)
 
         return train_dataset, val_dataset, test_dataset
     
-    def load_image(self, path: str, augment: bool) -> torch.Tensor:
+    def load_image(self, path: str, augment: Optional[List[str]]) -> torch.Tensor:
         img_pil = Image.open(path).convert("RGB")
 
-        if augment:
-            # TODO implement
+        if augment is not None:
+            # TODO check if one of the strings corresponds to the augmentation required here. Implement augmentation.
             pass
         
         # resize

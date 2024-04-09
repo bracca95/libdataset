@@ -51,8 +51,8 @@ class DatasetLauncher(Dataset):
             self,
             image_list: List[str],
             label_list: List[int],
-            augment: bool,
-            load_img_callback: Callable[[str, bool], torch.Tensor]
+            augment: Optional[List[str]],
+            load_img_callback: Callable[[str, Optional[List[str]]], torch.Tensor]
     ):
         super().__init__()
         self.image_list = image_list
@@ -153,11 +153,17 @@ class InferenceLauncher(DatasetLauncher):
     This is a custom launcher to retrieve the image paths
     """
 
-    def __init__(self, image_list: List[str], label_list: List[int], augment: bool, load_img_callback: Callable[[str, bool], torch.Tensor]):
+    def __init__(
+            self,
+            image_list: List[str],
+            label_list: List[int],
+            augment: Optional[List[str]],
+            load_img_callback: Callable[[str, Optional[List[str]]], torch.Tensor]
+    ):
         super().__init__(image_list, label_list, augment, load_img_callback)
 
     def __getitem__(self, index):
         curr_img_batch = self.image_list[index]
         curr_label_batch = self.label_list[index]
         
-        return self.load_img_callback(curr_img_batch, False), curr_label_batch, curr_img_batch
+        return self.load_img_callback(curr_img_batch, None), curr_label_batch, curr_img_batch
