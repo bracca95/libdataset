@@ -3,7 +3,9 @@ import torch
 
 from abc import abstractmethod
 from PIL import Image
+from torch import Tensor
 from typing import Optional, Tuple, Set, List, Callable
+from PIL.Image import Image as PilImgType
 from torch.utils.data import Dataset
 from torchvision.transforms import transforms
 
@@ -24,7 +26,7 @@ class FewShotDataset(DatasetWrapper):
     
     SeeAlso:
         [CIFAR-FS main page](https://github.com/bertinetto/r2d2)
-        [CIFAR-FS downlaod](https://drive.google.com/file/d/1pTsCCMDj45kzFYgrnO67BWVbKs48Q3NI/view?usp=sharing)
+        [CIFAR-FS download](https://drive.google.com/file/d/1pTsCCMDj45kzFYgrnO67BWVbKs48Q3NI/view?usp=sharing)
         [miniImagenet main page](https://github.com/fiveai/on-episodes-fsl)
         [miniImagenet download](https://drive.google.com/open?id=0B3Irx3uQNoBMQ1FlNXJsZUdYWEE)
         [miniImagenet split](https://github.com/mileyan/simple_shot/tree/master/split/mini)
@@ -68,20 +70,11 @@ class FewShotDataset(DatasetWrapper):
 
         img_list = []
         if augment is not None and "dataset" in [a.lower() for a in augment]:
-            # augmentation perfomed to return 10 different variations of the same image
-            transform_list = [
-                transforms.RandomResizedCrop(self.dataset_config.image_size, scale=(0.2, 0.8)), # ConditionalRandomCrop(64)
-                Processing.rotate_lambda(deg=60, p=1.0),
-                transforms.RandomHorizontalFlip(p=1.0),
-                transforms.Grayscale(num_output_channels=3),
-                transforms.ColorJitter(0.2, 0.2, 0.2, 0.1),
-                transforms.GaussianBlur(3),
-                transforms.RandomAffine(degrees=0, shear=[-45, 45, -45, 45])
-            ]
+            img_list = self.ssl_augment_basic(img_pil, self.dataset_config, 9, strong=True)
+            img_list.insert(0, img_pil)
 
-            random_transforms = [transforms.RandomChoice(transform_list) for _ in range(10)]
-
-            img_list = [aug_method(img_pil) for aug_method in random_transforms]
+        if augment is not None and "support" in [a.lower() for a in augment]:
+            img_list = self.ssl_augment_basic(img_pil, self.dataset_config, 5, strong=True)
         
         # basic operations: always performed
         basic_transf = transforms.Compose([
@@ -132,6 +125,31 @@ class FewShotDataset(DatasetWrapper):
                 val_dataset = None
                 
         return train_dataset, val_dataset, test_dataset
+    
+    @staticmethod
+    def ssl_augment_basic(x: PilImgType, dataset_config: DatasetConfig, n: int, strong: bool) -> List[Tensor]:
+        img_size = dataset_config.image_size
+        
+        transform_list = [
+            transforms.RandomResizedCrop(img_size, scale=(0.2, 0.8)), # ConditionalRandomCrop(64)
+            Processing.rotate_lambda(deg=60, p=1.0),
+            transforms.RandomHorizontalFlip(p=1.0),
+            transforms.Grayscale(num_output_channels=3),
+            transforms.ColorJitter(0.2, 0.2, 0.2, 0.1),
+            transforms.GaussianBlur(3),
+            transforms.RandomAffine(degrees=0, shear=[-45, 45, -45, 45])
+        ]
+
+        if strong:
+            # select three augmentations for each image (one strong augmented version is returned)
+            random_transforms = [
+                transforms.Compose([transforms.RandomChoice(transform_list) for _ in range(3)])
+                for _ in range(n)
+            ]
+        else:
+            random_transforms = [transforms.RandomChoice(transform_list) for _ in range(n)]
+        
+        return [aug_method(x) for aug_method in random_transforms]
 
     @property
     def image_list(self) -> List[str]:
