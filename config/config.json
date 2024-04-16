@@ -1,6 +1,6 @@
 {
-    "dataset_path": "/media/lorenzo/D/datasets/ILSVRC",
-    "dataset_type": "episodic_imagenet1k",
+    "dataset_path": "/media/lorenzo/D/datasets/CUB/CUB_200_2011",
+    "dataset_type": "cub",
     "dataset_splits": [
         0.7,
         0.1,

@@ -14,57 +14,50 @@ class Cub(FewShotDataset):
     """CUB 200 2011
 
     The orginal dataset train/test split does not account for a validation set, and most importantly it does not split
-    train and test classes: we want to classify unseen classes, not unseen instances!
+    train and test classes: we want to classify unseen classes, not unseen instances! Meta-dataset provides these splits
+    instead.
 
     Not all classes have the same number of samples: 144/200 classes have exactly 60 samples. The remaining classes
     have less samples.
 
     SeeAlso:
         [FSL dataset](https://www.vision.caltech.edu/datasets/cub_200_2011/)
+        [split](https://github.com/google-research/meta-dataset/blob/main/meta_dataset/dataset_conversion/splits/cu_birds_splits.json)
     """
 
     N_CLASSES = 200
+    N_CLASS_TRAIN = 140
+    N_CLASS_VAL = 30
+    N_CLASS_TEST = 30
     N_IMAGES = 11788
-    SPLIT_DIR = "splits"
-    META_TRAIN = "meta_train"
-    META_TEST = "meta_test"
-    META_VAL = "meta_val"
+    IMG_DIR = "images"
 
     def __init__(self, dataset_config: DatasetConfig):
         self.dataset_config = dataset_config
-        self.train_dir = Tools.validate_path(os.path.join(self.dataset_config.dataset_path, self.SPLIT_DIR, self.META_TRAIN))
-        self.val_dir = Tools.validate_path(os.path.join(self.dataset_config.dataset_path, self.SPLIT_DIR, self.META_VAL))
-        self.test_dir = Tools.validate_path(os.path.join(self.dataset_config.dataset_path, self.SPLIT_DIR, self.META_TEST))
-        self._check_meta_split()
+        self.img_dir_path = Tools.validate_path(os.path.join(self.dataset_config.dataset_path, self.IMG_DIR))
+        self.split_dir = Tools.validate_path(os.path.join(os.path.abspath(__file__).rsplit("src", 1)[0], "splits", "cub"))
         
         super().__init__(dataset_config)
 
     def get_image_list(self, filt: Optional[List[str]]) -> List[str]:
-        img_train = glob(os.path.join(self.train_dir, "*", "*.jpg"))
-        img_val = glob(os.path.join(self.val_dir, "*", "*.jpg"))
-        img_test = glob(os.path.join(self.test_dir, "*", "*.jpg"))
+        img_list = glob(os.path.join(self.img_dir_path, "*", "*.jpg"))
 
-        if not len(img_train) + len(img_val) + len(img_test) == self.expected_length():
+        if not len(img_list) == self.expected_length():
             raise ValueError(f"There should be 11788 images in the CUB dataset, overall.")
 
-        return img_train + img_val + img_test
+        return img_list
     
     def split_method(self) -> Tuple[Set[str], Set[str], Set[str]]:
-        class_train = set(filter(lambda x: os.path.isdir(os.path.join(self.train_dir, x)), os.listdir(self.train_dir)))
-        class_val = set(filter(lambda x: os.path.isdir(os.path.join(self.val_dir, x)), os.listdir(self.val_dir)))
-        class_test = set(filter(lambda x: os.path.isdir(os.path.join(self.test_dir, x)), os.listdir(self.test_dir)))
+        obj = Tools.read_json(os.path.join(self.split_dir, "cu_birds_splits.json"))
+        
+        class_train = set(obj.get("train"))
+        class_val = set(obj.get("valid"))
+        class_test = set(obj.get("test"))
         
         return class_train, class_val, class_test
 
     def expected_length(self) -> int:
         return self.N_IMAGES
-    
-    def _check_meta_split(self):
-        check_path = os.path.join(self.dataset_config.dataset_path, self.SPLIT_DIR)
-        if not set([self.META_TRAIN, self.META_TEST]) <= set(os.listdir(check_path)):
-            msg = f"'meta_train' and/or 'meta_test' dir/s missing in {check_path}"
-            Logger.instance().error(msg)
-            raise ValueError(msg)
 
     # def __init__(self, dataset_config: DatasetConfig):
     #     super().__init__(dataset_config)
