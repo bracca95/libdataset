@@ -7,6 +7,7 @@ from .custom.defectviews import GlassOpt, GlassOptBckg, GlassOptTricky, GlassOpt
 from .fsl.omniglot import OmniglotWrapper
 from .fsl.episodic_imagenet import EpisodicImagenet
 from .fsl.episodic_imagenet1k import EpisodicImagenet1k
+from .fsl.episodic_coco import EpisodicCoco
 from .fsl.miniimagenet import MiniImagenet
 from .fsl.cifar import CifarFs
 from .fsl.cub import Cub
@@ -55,6 +56,9 @@ class DatasetBuilder:
         elif dataset_config.dataset_type == "episodic_imagenet1k":
             Logger.instance().info("Loading dataset EpisodicImagenet1k (type FewShotDataset)")
             return EpisodicImagenet1k(dataset_config)
+        elif dataset_config.dataset_type == "episodic_coco":
+            Logger.instance().info("Loading dataset EpisodicCoco (type FewShotDataset)")
+            return EpisodicCoco(dataset_config)
         elif dataset_config.dataset_type == "miniimagenet":
             Logger.instance().info("Loading dataset Mini Imagenet (type FewShotDataset)")
             return MiniImagenet(dataset_config)
@@ -70,8 +74,8 @@ class DatasetBuilder:
         else:
             raise ValueError(
                 "values allowed: {`opt6`, `opt_bckg`, `opt_double`, `opt_double_inference`, `binary`, `qplusv1`, " +
-                "`qplusv2`, `qplus_double`, `omniglot`, `episodic_imagenet`, `miniimagenet`, `opt_yolo_train`, " +
-                "`opt_yolo_test`, `cub`, `cifar_fs`, `celeba`} for dataset_type"
+                "`qplusv2`, `qplus_double`, `omniglot`, `episodic_imagenet`, `episodic_imagenet1k`, `episodic_coco`, " +
+                "`miniimagenet`, `opt_yolo_train`, `opt_yolo_test`, `cub`, `cifar_fs`, `celeba`} for dataset_type"
             )
         
 class YoloDatasetBuilder:

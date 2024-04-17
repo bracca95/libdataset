@@ -1,6 +1,6 @@
 {
-    "dataset_path": "/media/lorenzo/D/datasets/CUB/CUB_200_2011",
-    "dataset_type": "cub",
+    "dataset_path": "/media/lorenzo/D/datasets/mscoco/coco2017",
+    "dataset_type": "episodic_coco",
     "dataset_splits": [
         0.7,
         0.1,
