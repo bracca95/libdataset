@@ -1,5 +1,6 @@
 import os
-import torch
+import re
+import shutil
 
 from glob import glob
 from typing import List, Set, Tuple, Optional
@@ -9,50 +10,74 @@ from ...utils.config_parser import DatasetConfig
 from ...utils.tools import Logger, Tools
 from ....config.consts import General as _CG
 
-class Cub(FewShotDataset):
-    """CUB 200 2011
+class Fungi(FewShotDataset):
+    """Fungi FSL split
 
-    The orginal dataset train/test split does not account for a validation set, and most importantly it does not split
-    train and test classes: we want to classify unseen classes, not unseen instances! Meta-dataset provides these splits
-    instead.
-
-    Not all classes have the same number of samples: 144/200 classes have exactly 60 samples. The remaining classes
-    have less samples.
+    2018 Fungi Classification for the FGVCx competition. Over 100,000 fungi images of nearly 1,500 wild mushrooms 
+    species. The FSL splits are taken from meta-dataset repository (train/val of the original dataset).
 
     SeeAlso:
-        [FSL dataset](https://www.vision.caltech.edu/datasets/cub_200_2011/)
-        [split](https://github.com/google-research/meta-dataset/blob/main/meta_dataset/dataset_conversion/splits/cu_birds_splits.json)
+        [download (train/val)](https://github.com/visipedia/fgvcx_fungi_comp?tab=readme-ov-file#data)
+        [split](https://github.com/google-research/meta-dataset/blob/main/meta_dataset/dataset_conversion/splits/fungi_splits.json)
     """
 
-    N_CLASSES = 200
-    N_CLASS_TRAIN = 140
-    N_CLASS_VAL = 30
-    N_CLASS_TEST = 30
-    N_IMAGES = 11788
+    N_CLASS_TRAIN = 994
+    N_CLASS_VAL = 200
+    N_CLASS_TEST = 200
+    N_IMAGES = 89760
     IMG_DIR = "images"
 
     def __init__(self, dataset_config: DatasetConfig):
         self.dataset_config = dataset_config
         self.img_dir_path = Tools.validate_path(os.path.join(self.dataset_config.dataset_path, self.IMG_DIR))
-        self.split_dir = Tools.validate_path(os.path.join(os.path.abspath(__file__).rsplit("src", 1)[0], "splits", "cub"))
-        
+        self.split_dir = Tools.validate_path(os.path.join(os.path.abspath(__file__).rsplit("src", 1)[0], "splits", "fungi"))
+        self.__adapt_dirnames()
+
         super().__init__(dataset_config)
 
     def get_image_list(self, filt: Optional[List[str]]) -> List[str]:
-        img_list = glob(os.path.join(self.img_dir_path, "*", "*.jpg"))
+        # fuck it's broken
+        img_list = []
+        for root, dirs, files in os.walk(self.img_dir_path):
+            for file in files:
+                if file.endswith(".JPG"):
+                    img_path = os.path.join(root, file)
+                    img_list.append(img_path)
+        
         return img_list
     
     def split_method(self) -> Tuple[Set[str], Set[str], Set[str]]:
-        obj = Tools.read_json(os.path.join(self.split_dir, "cu_birds_splits.json"))
+        obj = Tools.read_json(os.path.join(self.split_dir, "fungi_splits.json"))
+        pattern = re.compile(r'^\d+\.') # initial number and "."
+
+        def get_class_set(split_name: str):
+            og_names = obj.get(split_name)
+            result = [pattern.sub('', s) for s in og_names]
+            return set(result)
         
-        class_train = set(obj.get("train"))
-        class_val = set(obj.get("valid"))
-        class_test = set(obj.get("test"))
-        
-        return class_train, class_val, class_test
+        return get_class_set("train"), get_class_set("valid"), get_class_set("test")
 
     def expected_length(self) -> int:
         return self.N_IMAGES
+    
+    def __adapt_dirnames(self):
+        items = os.listdir(self.img_dir_path)
+    
+        # if any directory does not start with a digit processing has already been done
+        if any(not os.path.isdir(os.path.join(self.img_dir_path, item)) or not item[0].isdigit() for item in items):
+            Logger.instance().debug("Fungi has already been pre-processed (names)")
+            return
+        
+        # rename
+        for item in items:
+            item_path = os.path.join(self.img_dir_path, item)
+            if os.path.isdir(item_path):
+                new_name = re.sub(r'^\d+\_', '', item)
+                new_name = new_name.replace('_', ' ')
+                new_path = os.path.join(self.img_dir_path, new_name)
+                shutil.move(item_path, new_path)
+
+        Logger.instance().debug(f"Fungi has been renamed!")
 
     # def __init__(self, dataset_config: DatasetConfig):
     #     super().__init__(dataset_config)

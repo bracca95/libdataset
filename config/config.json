@@ -1,6 +1,6 @@
 {
-    "dataset_path": "/media/lorenzo/D/datasets/mscoco/coco2017",
-    "dataset_type": "episodic_coco",
+    "dataset_path": "/media/lorenzo/D/datasets/fungi",
+    "dataset_type": "fungi",
     "dataset_splits": [
         0.7,
         0.1,
