@@ -2,6 +2,7 @@ import os
 import re
 import sys
 import json
+import time
 import logging
 
 from typing import Type, Any, Union, Optional, List
@@ -144,6 +145,41 @@ class Tools:
             raise ValueError("The dictionary cannot be inverted as its values are not unique")
 
         return { v: k for k, v in in_dict.items() }
+    
+    @staticmethod
+    def elapsed_time(start: float, *args) -> str:
+        """Elapsed time as string
+
+        Returns a string with the time elapsed in the format days:hours:min:sec from the start time passed as parameter.
+
+        Args:
+            start (float): provided via time.time()
+            *args: anything to provide additional information that is eventually printed
+
+        Returns:
+            (str) time elapsed in the format days:hours:min:sec
+        """
+        
+        end = time.time() - start
+
+        days, r = divmod(end, 86400)
+        hours, r = divmod(r, 3600)
+        mins, sec = divmod(r, 60)
+        
+        return f"Elapsed time at {args} is {int(days)}days:{int(hours)}h:{int(mins)}m:{int(sec)}s"
+    
+    @staticmethod
+    def recursive_count(path: str) -> int:
+        if len(os.listdir(path)) < 1:
+            raise FileNotFoundError(f"The directory {path} is empty")
+        
+        count = 0
+        for sub in os.listdir(path):
+            sub_path = os.path.join(path, sub)
+            if os.path.isdir(sub_path):
+                count += len(os.listdir(sub_path))
+
+        return count
 
 
 @Singleton

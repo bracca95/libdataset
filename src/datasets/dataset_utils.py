@@ -12,6 +12,7 @@ from .fsl.miniimagenet import MiniImagenet
 from .fsl.cifar import CifarFs
 from .fsl.cub import Cub
 from .fsl.fungi import Fungi
+from .fsl.aircraft import Aircraft
 from .torch.celeba import CelebaWrapper
 from ..utils.config_parser import DatasetConfig
 from ..utils.tools import Logger
@@ -72,6 +73,9 @@ class DatasetBuilder:
         elif dataset_config.dataset_type == "fungi":
             Logger.instance().info("Loading dataset Fungi (type FewShotDataset)")
             return Fungi(dataset_config)
+        elif dataset_config.dataset_type == "aircraft":
+            Logger.instance().info("Loading dataset Aircraft (type FewShotDataset)")
+            return Aircraft(dataset_config)
         elif dataset_config.dataset_type == "celeba":
             Logger.instance().info("Loading dataset Omniglot (type Dataset)")
             return CelebaWrapper(dataset_config)
@@ -79,7 +83,8 @@ class DatasetBuilder:
             raise ValueError(
                 "values allowed: {`opt6`, `opt_bckg`, `opt_double`, `opt_double_inference`, `binary`, `qplusv1`, " +
                 "`qplusv2`, `qplus_double`, `omniglot`, `episodic_imagenet`, `episodic_imagenet1k`, `episodic_coco`, " +
-                "`miniimagenet`, `opt_yolo_train`, `opt_yolo_test`, `cub`, `fungi`, `cifar_fs`, `celeba`} for dataset_type"
+                "`miniimagenet`, `opt_yolo_train`, `opt_yolo_test`, `cub`, `fungi`, `aircraft`, `cifar_fs`, `celeba`} " +
+                "for dataset_type"
             )
         
 class YoloDatasetBuilder:

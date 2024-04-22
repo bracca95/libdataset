@@ -1,6 +1,6 @@
 {
-    "dataset_path": "/media/lorenzo/D/datasets/fungi",
-    "dataset_type": "fungi",
+    "dataset_path": "/media/lorenzo/D/datasets/aircraft",
+    "dataset_type": "aircraft",
     "dataset_splits": [
         0.7,
         0.1,
