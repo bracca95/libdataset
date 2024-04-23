@@ -63,6 +63,7 @@ class DatasetConfig:
     image_size: int = _CG.DEFAULT_INT
     augment_online: Optional[List[str]] = None
     augment_offline: Optional[List[str]] = None
+    augment_times: Optional[int] = None
     dataset_mean: Optional[List[float]] = None
     dataset_std: Optional[List[float]] = None
 
@@ -85,6 +86,7 @@ class DatasetConfig:
             image_size = from_int(obj.get(_CD.CONFIG_IMAGE_SIZE))
             augment_online = from_union([lambda x: from_list(from_str, x), from_none], obj.get(_CD.CONFIG_AUGMENT_ONLINE))
             augment_offline = from_union([lambda x: from_list(from_str, x), from_none], obj.get(_CD.CONFIG_AUGMENT_OFFLINE))
+            augment_times = from_union([from_int, from_none], obj.get(_CD.CONFIG_AUGMENT_TIMES))
             dataset_mean = from_union([lambda x: from_list(from_float, x), from_none], obj.get(_CD.CONFIG_DATASET_MEAN))
             dataset_std = from_union([lambda x: from_list(from_float, x), from_none], obj.get(_CD.CONFIG_DATASET_STD))
         except TypeError as te:
@@ -111,10 +113,14 @@ class DatasetConfig:
         Logger.instance().info(f"DatasetConfig deserialized: " +
             f"dataset_path: {dataset_path}, dataset_type: {dataset_type}, dataset_splits: {dataset_splits}, " +
             f"normalize: {normalize}, augment_online: {augment_online}, augment_offline: {augment_offline}, " +
-            f"dataset mean: {dataset_mean}, dataset_std: {dataset_std}, crop_size: {crop_size}, image_size: {image_size}"
+            f"augment_times: {augment_times}, dataset mean: {dataset_mean}, dataset_std: {dataset_std}, " +
+            f"crop_size: {crop_size}, image_size: {image_size}"
         )
         
-        return DatasetConfig(dataset_path, dataset_type, dataset_splits, normalize, crop_size, image_size, augment_online, augment_offline, dataset_mean, dataset_std)
+        return DatasetConfig(
+            dataset_path, dataset_type, dataset_splits, normalize, crop_size, image_size, augment_online, 
+            augment_offline, augment_times, dataset_mean, dataset_std
+        )
 
     def serialize(self) -> dict:
         result: dict = {}
@@ -128,6 +134,7 @@ class DatasetConfig:
         result[_CD.CONFIG_IMAGE_SIZE] = from_int(self.image_size)
         result[_CD.CONFIG_AUGMENT_ONLINE] = from_union([lambda x: from_list(from_str, x), from_none], self.augment_online)
         result[_CD.CONFIG_AUGMENT_OFFLINE] = from_union([lambda x: from_list(from_str, x), from_none], self.augment_offline)
+        result[_CD.CONFIG_AUGMENT_TIMES] = from_union([from_int, from_none], self.augment_times)
         result[_CD.CONFIG_DATASET_MEAN] = from_union([lambda x: from_list(from_float, x), from_none], self.dataset_mean)
         result[_CD.CONFIG_DATASET_STD] = from_union([lambda x: from_list(from_float, x), from_none], self.dataset_std)
 

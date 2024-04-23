@@ -24,6 +24,7 @@ class DatasetConst:
     CONFIG_NORMALIZE = "normalize"
     CONFIG_AUGMENT_ONLINE = "augment_online"
     CONFIG_AUGMENT_OFFLINE = "augment_offline"
+    CONFIG_AUGMENT_TIMES = "augment_times"
     CONFIG_CROP_SIZE = "crop_size"
     CONFIG_IMAGE_SIZE = "image_size"
     CONFIG_DATASET_MEAN = "dataset_mean"

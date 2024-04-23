@@ -11,6 +11,7 @@
     "image_size": 224,
     "augment_online": null,
     "augment_offline": null,
+    "augment_times": null,
     "dataset_mean": null,
     "dataset_std": null
 }

@@ -15,6 +15,7 @@ Edit the `config/config.json` file to start
 "image_size": int (after crop, reshape can be applied),
 "augment_online": Optional[List[str]] (classes for online augmentation),
 "augment_offline": Optional[List[str]] (classes for offline augmentation),
+"augment_times": Optional[int] (number of times to apply augmentations)
 "dataset_mean": Optional[List[float]] (Grayscale/RGB),
 "dataset_std": Optional[List[float]] (Grayscale/RGB)
 ```
