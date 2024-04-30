@@ -66,15 +66,16 @@ class FewShotDataset(DatasetWrapper):
         return [self.label_to_idx[os.path.basename(os.path.dirname(image_name))] for image_name in self.image_list]
 
     def load_image(self, path: str, augment: Optional[List[str]]) -> torch.Tensor:
+        repeat: int = self.dataset_config.augment_times      # type: ignore .non-null checked in config parser
         img_pil = Image.open(path).convert("RGB")
 
         img_list = []
         if augment is not None and "dataset" in [a.lower() for a in augment]:
-            img_list = self.ssl_augment_basic(img_pil, self.dataset_config, 9, strong=True)
+            img_list = self.ssl_augment_basic(img_pil, self.dataset_config, (2*repeat)-1, strong=True)
             img_list.insert(0, img_pil)
 
         if augment is not None and "support" in [a.lower() for a in augment]:
-            img_list = self.ssl_augment_basic(img_pil, self.dataset_config, 5, strong=True)
+            img_list = self.ssl_augment_basic(img_pil, self.dataset_config, repeat, strong=True)
         
         # basic operations: always performed
         basic_transf = transforms.Compose([
