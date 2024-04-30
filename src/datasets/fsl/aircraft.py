@@ -1,7 +1,6 @@
 import os
-import sys
-import shutil
 
+from PIL import Image
 from glob import glob
 from typing import List, Set, Tuple, Optional
 
@@ -94,6 +93,11 @@ class Aircraft(FewShotDataset):
                         os.makedirs(os.path.join(self.split_imgs_dir, variant), exist_ok=True)
                         full_old_filename = os.path.join(self.img_dir, f"{filename}.jpg")
                         full_new_filename = os.path.join(self.split_imgs_dir, variant, f"{filename}.jpg")
-                        shutil.copy(full_old_filename, full_new_filename)
+                        
+                        # remove 20 pixels from the bottom (copyright info)
+                        img = Image.open(full_old_filename)
+                        w, h = img.size
+                        crop = img.crop((0, 0, w, h - 20))
+                        crop.save(full_new_filename)
         
         Logger.instance().debug(f"Aircraft has been copied!")
