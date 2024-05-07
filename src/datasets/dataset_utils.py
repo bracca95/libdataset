@@ -5,7 +5,7 @@ from .dataset import DatasetWrapper
 from .other.glass_plate import GlassPlate, GlassPlateTrainYolo, GlassPlateTestYolo
 from .custom.defectviews import GlassOpt, GlassOptBckg, GlassOptTricky, GlassOptDouble, GlassOptDoubleInference, BubblePoint, QPlusV1, QPlusV2, QPlusDouble
 from .fsl.omniglot import OmniglotWrapper
-from .fsl.episodic_imagenet import EpisodicImagenet
+from .fsl.episodic_imagenet import EpisodicImagenet, EpisodicImagenetValCifar, EpisodicImagenetValCub, EpisodicImagenetValAircraft
 from .fsl.episodic_imagenet1k import EpisodicImagenet1k
 from .fsl.episodic_coco import EpisodicCoco
 from .fsl.miniimagenet import MiniImagenet
@@ -55,6 +55,15 @@ class DatasetBuilder:
         elif dataset_config.dataset_type == "episodic_imagenet":
             Logger.instance().info("Loading dataset EpisodicImagenet (type FewShotDataset)")
             return EpisodicImagenet(dataset_config)
+        elif dataset_config.dataset_type == "episodic_imagenet_val_cifar":
+            Logger.instance().info("Loading dataset EpisodicImagenetValCifar (type FewShotDataset)")
+            return EpisodicImagenetValCifar(dataset_config)
+        elif dataset_config.dataset_type == "episodic_imagenet_val_cub":
+            Logger.instance().info("Loading dataset EpisodicImagenetValCub (type FewShotDataset)")
+            return EpisodicImagenetValCub(dataset_config)
+        elif dataset_config.dataset_type == "episodic_imagenet_val_aircraft":
+            Logger.instance().info("Loading dataset EpisodicImagenetValAircraft (type FewShotDataset)")
+            return EpisodicImagenetValAircraft(dataset_config)
         elif dataset_config.dataset_type == "episodic_imagenet1k":
             Logger.instance().info("Loading dataset EpisodicImagenet1k (type FewShotDataset)")
             return EpisodicImagenet1k(dataset_config)
@@ -84,7 +93,8 @@ class DatasetBuilder:
                 "values allowed: {`opt6`, `opt_bckg`, `opt_double`, `opt_double_inference`, `binary`, `qplusv1`, " +
                 "`qplusv2`, `qplus_double`, `omniglot`, `episodic_imagenet`, `episodic_imagenet1k`, `episodic_coco`, " +
                 "`miniimagenet`, `opt_yolo_train`, `opt_yolo_test`, `cub`, `fungi`, `aircraft`, `cifar_fs`, `celeba`} " +
-                "for dataset_type"
+                "for dataset_type. episodic imagenet can also be run with other evaluation datasets: append " +
+                "(_val_cifar, _val_cub, _val_aircraft)"
             )
         
 class YoloDatasetBuilder:
