@@ -71,11 +71,16 @@ class FewShotDataset(DatasetWrapper):
 
         img_list = []
         if augment is not None and "dataset" in [a.lower() for a in augment]:
-            img_list = self.ssl_augment_basic(img_pil, self.dataset_config, (2*repeat)-1, strong=True)
+            img_list = self.ssl_augment_basic(img_pil, self.dataset_config, (2*repeat)-1, strong=True, weak=False)
             img_list.insert(0, img_pil)
 
         if augment is not None and "support" in [a.lower() for a in augment]:
-            img_list = self.ssl_augment_basic(img_pil, self.dataset_config, repeat, strong=True)
+            img_list = self.ssl_augment_basic(img_pil, self.dataset_config, repeat, strong=True, weak=False)
+
+        # as in traditional SSL benchmarks
+        # in the original PsCo paper one augmentation is strong the other is weak
+        if augment is not None and "psco" in [a.lower() for a in augment]:
+            img_list = self.ssl_augment_basic(img_pil, self.dataset_config, repeat+1, strong=True, weak=True)
         
         # basic operations: always performed
         basic_transf = transforms.Compose([
@@ -128,7 +133,7 @@ class FewShotDataset(DatasetWrapper):
         return train_dataset, val_dataset, test_dataset
     
     @staticmethod
-    def ssl_augment_basic(x: PilImgType, dataset_config: DatasetConfig, n: int, strong: bool) -> List[Tensor]:
+    def ssl_augment_basic(x: PilImgType, dataset_config: DatasetConfig, n: int, strong: bool, weak: bool) -> List[Tensor]:
         img_size = dataset_config.image_size
         
         transform_list = [
@@ -141,7 +146,18 @@ class FewShotDataset(DatasetWrapper):
             transforms.RandomAffine(degrees=0, shear=[-45, 45, -45, 45])
         ]
 
-        if strong:
+        weak_transform_list = [
+            transforms.RandomResizedCrop(img_size, scale=(0.2, 0.8)),
+            transforms.RandomHorizontalFlip(p=1.0),
+        ]
+
+        if strong and weak:  # psco
+            random_transforms = [
+                transforms.Compose([transforms.RandomChoice(transform_list) for _ in range(3)])
+                for _ in range(n//2)
+            ]
+            random_transforms.extend([transforms.Compose(weak_transform_list) for _ in range(n//2)])
+        elif strong and not weak:
             # select three augmentations for each image (one strong augmented version is returned)
             random_transforms = [
                 transforms.Compose([transforms.RandomChoice(transform_list) for _ in range(3)])
