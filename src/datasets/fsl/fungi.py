@@ -21,10 +21,10 @@ class Fungi(FewShotDataset):
         [split](https://github.com/google-research/meta-dataset/blob/main/meta_dataset/dataset_conversion/splits/fungi_splits.json)
     """
 
-    N_CLASS_TRAIN = 994
+    N_CLASS_TRAIN = 992 #994
     N_CLASS_VAL = 200
     N_CLASS_TEST = 200
-    N_IMAGES = 89760
+    N_IMAGES = 89618 #89760
     IMG_DIR = "images"
 
     def __init__(self, dataset_config: DatasetConfig):
@@ -37,13 +37,7 @@ class Fungi(FewShotDataset):
 
     def get_image_list(self, filt: Optional[List[str]]) -> List[str]:
         # fuck it's broken
-        img_list = []
-        for root, dirs, files in os.walk(self.img_dir_path):
-            for file in files:
-                if file.endswith(".JPG"):
-                    img_path = os.path.join(root, file)
-                    img_list.append(img_path)
-        
+        img_list = glob(os.path.join(self.img_dir_path, "*", "*JPG"))
         return img_list
     
     def split_method(self) -> Tuple[Set[str], Set[str], Set[str]]:
@@ -51,6 +45,7 @@ class Fungi(FewShotDataset):
         pattern = re.compile(r'^\d+\.') # initial number and "."
 
         def get_class_set(split_name: str):
+            # fungi annotation is wrong: two classes appear twice! (994 vs 992)
             og_names = obj.get(split_name)
             result = [pattern.sub('', s) for s in og_names]
             return set(result)
