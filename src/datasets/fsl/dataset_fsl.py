@@ -7,7 +7,7 @@ from torch import Tensor
 from typing import Optional, Tuple, Set, List, Callable
 from PIL.Image import Image as PilImgType
 from torch.utils.data import Dataset
-from torchvision.transforms import transforms
+from torchvision.transforms import transforms, AutoAugment
 
 from ..dataset import DatasetWrapper, DatasetLauncher
 from ...imgproc import Processing
@@ -40,6 +40,7 @@ class FewShotDataset(DatasetWrapper):
         self._image_list = self.get_image_list(None)
         self._label_list = self.get_label_list()
         self._train_dataset, self._val_dataset, self._test_dataset = self.split_dataset(self.split_method)
+        self._augment_policy = AutoAugment()
     
     @abstractmethod
     def get_image_list(self, filt: Optional[List[str]]) -> List[str]:
@@ -79,7 +80,8 @@ class FewShotDataset(DatasetWrapper):
 
         if augment is not None and "umtra" in [a.lower() for a in augment]:
             repeat = 5
-            img_list = self.ssl_augment_basic(img_pil, self.dataset_config, (2*repeat)-1, strong=True, weak=False)
+            #img_list = self.ssl_augment_basic(img_pil, self.dataset_config, (2*repeat)-1, strong=True, weak=False)
+            img_list = [self._augment_policy(img_pil) for _ in range(2*repeat-1)]
             img_list.insert(0, img_pil)
 
         # as in traditional SSL benchmarks
