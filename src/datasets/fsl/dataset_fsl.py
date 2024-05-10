@@ -77,6 +77,11 @@ class FewShotDataset(DatasetWrapper):
         if augment is not None and "support" in [a.lower() for a in augment]:
             img_list = self.ssl_augment_basic(img_pil, self.dataset_config, repeat, strong=True, weak=False)
 
+        if augment is not None and "umtra" in [a.lower() for a in augment]:
+            repeat = 5
+            img_list = self.ssl_augment_basic(img_pil, self.dataset_config, (2*repeat)-1, strong=True, weak=False)
+            img_list.insert(0, img_pil)
+
         # as in traditional SSL benchmarks
         # in the original PsCo paper one augmentation is strong the other is weak
         if augment is not None and "psco" in [a.lower() for a in augment]:
