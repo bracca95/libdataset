@@ -1,6 +1,6 @@
 {
-    "dataset_path": "/media/lorenzo/D/datasets/fungi",
-    "dataset_type": "fungi",
+    "dataset_path": "/media/lorenzo/D/datasets/PlantVillage-Dataset",
+    "dataset_type": "cropdiseases",
     "dataset_splits": [
         0.7,
         0.1,

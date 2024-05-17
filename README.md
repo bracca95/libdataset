@@ -8,7 +8,7 @@ Edit the `config/config.json` file to start
 
 ```
 "dataset_path": string,
-"dataset_type": {`opt6`, `opt_bckg`, `opt_double`, `opt_double_inference`, `binary`, `qplusv1`, `qplusv2`, `qplus_double`, `omniglot`, `episodic_imagenet`, `episodic_imagenet1k`, `episodic_coco`, `miniimagenet`, `opt_yolo_train`, `opt_yolo_test`, `cub`, `fungi`, `aircraft`, `cifar_fs`, `celeba`. episodic imagenet can also be run with other evaluation datasets: append (_val_cifar, _val_cub, val_aircraft)},
+"dataset_type": {`opt6`, `opt_bckg`, `opt_double`, `opt_double_inference`, `binary`, `qplusv1`, `qplusv2`, `qplus_double`, `omniglot`, `episodic_imagenet`, `episodic_imagenet1k`, `episodic_coco`, `miniimagenet`, `opt_yolo_train`, `opt_yolo_test`, `cub`, `fungi`, `aircraft`, `cropdiseases`, `cifar_fs`, `celeba`. `episodic_imagenet` can also be run with other evaluation datasets: append (_val_cifar, _val_cub, val_aircraft)},
 "dataset_splits": List[float] (1 for train/test (e.g. [0.8]), 3 for train/val/test),
 "normalize": bool,
 "crop_size": int,

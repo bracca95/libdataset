@@ -13,6 +13,7 @@ from .fsl.cifar import CifarFs
 from .fsl.cub import Cub
 from .fsl.fungi import Fungi
 from .fsl.aircraft import Aircraft
+from .fsl.cropdiseases import CropDiseases
 from .torch.celeba import CelebaWrapper
 from ..utils.config_parser import DatasetConfig
 from ..utils.tools import Logger
@@ -85,6 +86,9 @@ class DatasetBuilder:
         elif dataset_config.dataset_type == "aircraft":
             Logger.instance().info("Loading dataset Aircraft (type FewShotDataset)")
             return Aircraft(dataset_config)
+        elif dataset_config.dataset_type == "cropdiseases":
+            Logger.instance().info("Loading dataset CropDiseases (type FewShotDataset)")
+            return CropDiseases(dataset_config)
         elif dataset_config.dataset_type == "celeba":
             Logger.instance().info("Loading dataset Omniglot (type Dataset)")
             return CelebaWrapper(dataset_config)
@@ -92,8 +96,9 @@ class DatasetBuilder:
             raise ValueError(
                 "values allowed: {`opt6`, `opt_bckg`, `opt_double`, `opt_double_inference`, `binary`, `qplusv1`, " +
                 "`qplusv2`, `qplus_double`, `omniglot`, `episodic_imagenet`, `episodic_imagenet1k`, `episodic_coco`, " +
-                "`miniimagenet`, `opt_yolo_train`, `opt_yolo_test`, `cub`, `fungi`, `aircraft`, `cifar_fs`, `celeba`} " +
-                "for dataset_type. episodic imagenet can also be run with other evaluation datasets: append " +
+                "`miniimagenet`, `opt_yolo_train`, `opt_yolo_test`, `cub`, `fungi`, `aircraft`, `cropdiseases`, "
+                "`cifar_fs`, `celeba`} for dataset_type.\n" +
+                "`episodic_imagenet` can also be run with other evaluation datasets: append " +
                 "(_val_cifar, _val_cub, _val_aircraft)"
             )
         
