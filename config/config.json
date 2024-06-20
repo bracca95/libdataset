@@ -1,6 +1,6 @@
 {
-    "dataset_path": "/media/lorenzo/D/datasets/aircraft",
-    "dataset_type": "aircraft",
+    "dataset_path": "/media/lorenzo/D/datasets/EuroSAT_RGB",
+    "dataset_type": "eurosat",
     "dataset_splits": [
         0.7,
         0.1,

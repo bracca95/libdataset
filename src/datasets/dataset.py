@@ -1,7 +1,7 @@
 import os
 import torch
 
-from abc import ABC, abstractproperty, abstractmethod
+from abc import ABC, abstractmethod
 from typing import Tuple, List, Callable, Optional
 from torchvision import transforms
 from torchvision.utils import make_grid
@@ -19,23 +19,28 @@ class DatasetWrapper(ABC):
     image paths for all the samples (it may be required in tasks like FSL).
     """
 
-    @abstractproperty
+    @property
+    @abstractmethod
     def image_list(self) -> List[str]:
         ...
 
-    @abstractproperty
+    @property
+    @abstractmethod
     def label_list(self) -> List[int]:
         ...
 
-    @abstractproperty
+    @property
+    @abstractmethod
     def train_dataset(self) -> Dataset:
         ...
 
-    @abstractproperty
+    @property
+    @abstractmethod
     def test_dataset(self) -> Dataset:
         ...
 
-    @abstractproperty
+    @property
+    @abstractmethod
     def val_dataset(self) -> Optional[Dataset]:
         ...
 
@@ -145,25 +150,3 @@ class DatasetLauncher(Dataset):
 
         grid_pil = transforms.ToPILImage()(img_grid)
         grid_pil.save(os.path.join(outfolder, "sample_batch.png"))
-
-
-class InferenceLauncher(DatasetLauncher):
-    """Only used in GlassOptDoubleInference
-
-    This is a custom launcher to retrieve the image paths
-    """
-
-    def __init__(
-            self,
-            image_list: List[str],
-            label_list: List[int],
-            augment: Optional[List[str]],
-            load_img_callback: Callable[[str, Optional[List[str]]], torch.Tensor]
-    ):
-        super().__init__(image_list, label_list, augment, load_img_callback)
-
-    def __getitem__(self, index):
-        curr_img_batch = self.image_list[index]
-        curr_label_batch = self.label_list[index]
-        
-        return self.load_img_callback(curr_img_batch, None), curr_label_batch, curr_img_batch

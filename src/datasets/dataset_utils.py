@@ -2,8 +2,6 @@ from typing import Union
 from torch.utils.data import Dataset
 
 from .dataset import DatasetWrapper
-from .other.glass_plate import GlassPlate, GlassPlateTrainYolo, GlassPlateTestYolo
-from .custom.defectviews import GlassOpt, GlassOptBckg, GlassOptTricky, GlassOptDouble, GlassOptDoubleInference, BubblePoint, QPlusV1, QPlusV2, QPlusDouble
 from .fsl.omniglot import OmniglotWrapper
 from .fsl.episodic_imagenet import EpisodicImagenet, EpisodicImagenetValCifar, EpisodicImagenetValCub, EpisodicImagenetValAircraft
 from .fsl.episodic_imagenet1k import EpisodicImagenet1k
@@ -13,6 +11,7 @@ from .fsl.cifar import CifarFs
 from .fsl.cub import Cub
 from .fsl.fungi import Fungi
 from .fsl.aircraft import Aircraft
+from .fsl.meta_test import CropDiseases, EuroSat, Isic
 from .torch.celeba import CelebaWrapper
 from ..utils.config_parser import DatasetConfig
 from ..utils.tools import Logger
@@ -22,34 +21,7 @@ class DatasetBuilder:
 
     @staticmethod
     def load_dataset(dataset_config: DatasetConfig) -> Union[DatasetWrapper, Dataset]:
-        if dataset_config.dataset_type == "opt6":
-            Logger.instance().info("Loading dataset GlassOpt (type DatasetWrapper)")
-            return GlassOpt(dataset_config)
-        elif dataset_config.dataset_type == "opt_bckg":
-            Logger.instance().info("Loading dataset GlassOptBckg (type GlassOpt)")
-            return GlassOptBckg(dataset_config)
-        elif dataset_config.dataset_type == "opt_tricky":
-            Logger.instance().info("Loading dataset GlassOptTricky (type GlassOpt)")
-            return GlassOptTricky(dataset_config)
-        elif dataset_config.dataset_type == "opt_double":
-            Logger.instance().info("Loading dataset GlassOptDouble (type GlassOpt)")
-            return GlassOptDouble(dataset_config)
-        elif dataset_config.dataset_type == "opt_double_inference":
-            Logger.instance().info("Loading dataset GlassOptDoubleInference (type GlassOptDouble)")
-            return GlassOptDoubleInference(dataset_config)
-        elif dataset_config.dataset_type == "qplus_double":
-            Logger.instance().info("Loading dataset QPlusDouble (type GlassOptDouble)")
-            return QPlusDouble(dataset_config)
-        elif dataset_config.dataset_type == "qplusv1":
-            Logger.instance().info("Loading dataset QPlusV1 (type GlassOpt)")
-            return QPlusV1(dataset_config)
-        elif dataset_config.dataset_type == "qplusv2":
-            Logger.instance().info("Loading dataset QPlusV2 (type GlassOpt)")
-            return QPlusV2(dataset_config)
-        elif dataset_config.dataset_type == "binary":
-            Logger.instance().info("Loading dataset BubblePoint (type GlassOpt)")
-            return BubblePoint(dataset_config)
-        elif dataset_config.dataset_type == "omniglot":
+        if dataset_config.dataset_type == "omniglot":
             Logger.instance().info("Loading dataset Omniglot (type FewShotDataset)")
             return OmniglotWrapper(dataset_config)
         elif dataset_config.dataset_type == "episodic_imagenet":
@@ -85,30 +57,23 @@ class DatasetBuilder:
         elif dataset_config.dataset_type == "aircraft":
             Logger.instance().info("Loading dataset Aircraft (type FewShotDataset)")
             return Aircraft(dataset_config)
+        elif dataset_config.dataset_type == "cropdiseases":
+            Logger.instance().info("Loading dataset CropDiseases (type MetaTest)")
+            return CropDiseases(dataset_config)
+        elif dataset_config.dataset_type == "eurosat":
+            Logger.instance().info("Loading dataset EuroSat (type MetaTest)")
+            return EuroSat(dataset_config)
+        elif dataset_config.dataset_type == "isic":
+            Logger.instance().info("Loading dataset Isic (type MetaTest)")
+            return Isic(dataset_config)
         elif dataset_config.dataset_type == "celeba":
             Logger.instance().info("Loading dataset Omniglot (type Dataset)")
             return CelebaWrapper(dataset_config)
         else:
             raise ValueError(
-                "values allowed: {`opt6`, `opt_bckg`, `opt_double`, `opt_double_inference`, `binary`, `qplusv1`, " +
-                "`qplusv2`, `qplus_double`, `omniglot`, `episodic_imagenet`, `episodic_imagenet1k`, `episodic_coco`, " +
-                "`miniimagenet`, `opt_yolo_train`, `opt_yolo_test`, `cub`, `fungi`, `aircraft`, `cifar_fs`, `celeba`} " +
-                "for dataset_type. episodic imagenet can also be run with other evaluation datasets: append " +
+                "values allowed: {`omniglot`, `episodic_imagenet`, `episodic_imagenet1k`, `episodic_coco`, " +
+                "`miniimagenet`, `cub`, `fungi`, `aircraft`, `cropdiseases`, `eurosat`, `isic`, `cifar_fs`, `celeba`} "
+                "for dataset_type.\n" +
+                "`episodic_imagenet` can also be run with other evaluation datasets: append " +
                 "(_val_cifar, _val_cub, _val_aircraft)"
             )
-        
-class YoloDatasetBuilder:
-
-    @staticmethod
-    def load_dataset(dataset_config: DatasetConfig) -> GlassPlate:
-        if dataset_config.dataset_type == "opt_yolo_train":
-            Logger.instance().info("Loading dataset GlassPlateTrainYolo (type GlassPlate)")
-            return GlassPlateTrainYolo(dataset_config)
-        elif dataset_config.dataset_type == "opt_yolo_test":
-            Logger.instance().info("Loading dataset GlassPlateTestYolo (type GlassPlate)")
-            return GlassPlateTestYolo(dataset_config)
-        else:
-            raise ValueError(
-            "values allowed: {`opt6`, `opt_bckg`, `opt_double` `binary`, `qplusv1`, `qplusv2`, " +
-            "`qplus_double` `omniglot`, `miniimagenet`, `opt_yolo_train`, `opt_yolo_test`} for dataset_type"
-        )
