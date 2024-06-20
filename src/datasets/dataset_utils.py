@@ -13,7 +13,7 @@ from .fsl.cifar import CifarFs
 from .fsl.cub import Cub
 from .fsl.fungi import Fungi
 from .fsl.aircraft import Aircraft
-from .fsl.cropdiseases import CropDiseases
+from .fsl.meta_test import CropDiseases, EuroSat, Isic
 from .torch.celeba import CelebaWrapper
 from ..utils.config_parser import DatasetConfig
 from ..utils.tools import Logger
@@ -87,8 +87,14 @@ class DatasetBuilder:
             Logger.instance().info("Loading dataset Aircraft (type FewShotDataset)")
             return Aircraft(dataset_config)
         elif dataset_config.dataset_type == "cropdiseases":
-            Logger.instance().info("Loading dataset CropDiseases (type FewShotDataset)")
+            Logger.instance().info("Loading dataset CropDiseases (type MetaTest)")
             return CropDiseases(dataset_config)
+        elif dataset_config.dataset_type == "eurosat":
+            Logger.instance().info("Loading dataset EuroSat (type MetaTest)")
+            return EuroSat(dataset_config)
+        elif dataset_config.dataset_type == "isic":
+            Logger.instance().info("Loading dataset Isic (type MetaTest)")
+            return Isic(dataset_config)
         elif dataset_config.dataset_type == "celeba":
             Logger.instance().info("Loading dataset Omniglot (type Dataset)")
             return CelebaWrapper(dataset_config)
@@ -97,7 +103,7 @@ class DatasetBuilder:
                 "values allowed: {`opt6`, `opt_bckg`, `opt_double`, `opt_double_inference`, `binary`, `qplusv1`, " +
                 "`qplusv2`, `qplus_double`, `omniglot`, `episodic_imagenet`, `episodic_imagenet1k`, `episodic_coco`, " +
                 "`miniimagenet`, `opt_yolo_train`, `opt_yolo_test`, `cub`, `fungi`, `aircraft`, `cropdiseases`, "
-                "`cifar_fs`, `celeba`} for dataset_type.\n" +
+                "`eurosat`, `isic`, `cifar_fs`, `celeba`} for dataset_type.\n" +
                 "`episodic_imagenet` can also be run with other evaluation datasets: append " +
                 "(_val_cifar, _val_cub, _val_aircraft)"
             )
