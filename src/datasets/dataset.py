@@ -1,7 +1,7 @@
 import os
 import torch
 
-from abc import ABC, abstractproperty, abstractmethod
+from abc import ABC, abstractmethod
 from typing import Tuple, List, Callable, Optional
 from torchvision import transforms
 from torchvision.utils import make_grid
@@ -19,23 +19,28 @@ class DatasetWrapper(ABC):
     image paths for all the samples (it may be required in tasks like FSL).
     """
 
-    @abstractproperty
+    @property
+    @abstractmethod
     def image_list(self) -> List[str]:
         ...
 
-    @abstractproperty
+    @property
+    @abstractmethod
     def label_list(self) -> List[int]:
         ...
 
-    @abstractproperty
+    @property
+    @abstractmethod
     def train_dataset(self) -> Dataset:
         ...
 
-    @abstractproperty
+    @property
+    @abstractmethod
     def test_dataset(self) -> Dataset:
         ...
 
-    @abstractproperty
+    @property
+    @abstractmethod
     def val_dataset(self) -> Optional[Dataset]:
         ...
 
