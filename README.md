@@ -1,7 +1,7 @@
-# Baseline Project for Defect Views dataset
+# A repo to manage them all: libdataset
 
 ## Dataset
-Your own dataset can be built by implementing the abstract class `DatasetWrapper` in `src.dataset.dataset.py`
+The idea is to have a unique repository to manage dataset for deep learning projects. Your own dataset can be built by implementing the abstract class `DatasetWrapper` in `src.dataset.dataset.py`
 
 ## Dataset Config
 Edit the `config/config.json` file to start
