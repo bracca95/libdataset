@@ -1,6 +1,6 @@
 {
-    "dataset_path": "/media/lorenzo/D/datasets/EuroSAT_RGB",
-    "dataset_type": "eurosat",
+    "dataset_path": "/media/lorenzo/D/datasets/dtd",
+    "dataset_type": "dtd",
     "dataset_splits": [
         0.7,
         0.1,

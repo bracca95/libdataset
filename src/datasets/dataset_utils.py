@@ -9,6 +9,7 @@ from .fsl.episodic_coco import EpisodicCoco
 from .fsl.miniimagenet import MiniImagenet
 from .fsl.cifar import CifarFs
 from .fsl.cub import Cub
+from .fsl.dtd import Dtd
 from .fsl.fungi import Fungi
 from .fsl.aircraft import Aircraft
 from .fsl.meta_test import CropDiseases, EuroSat, Isic
@@ -57,6 +58,9 @@ class DatasetBuilder:
         elif dataset_config.dataset_type == "aircraft":
             Logger.instance().info("Loading dataset Aircraft (type FewShotDataset)")
             return Aircraft(dataset_config)
+        elif dataset_config.dataset_type == "dtd":
+            Logger.instance().info("Loading dataset Dtd (type FewShotDataset)")
+            return Dtd(dataset_config)
         elif dataset_config.dataset_type == "cropdiseases":
             Logger.instance().info("Loading dataset CropDiseases (type MetaTest)")
             return CropDiseases(dataset_config)
@@ -72,8 +76,8 @@ class DatasetBuilder:
         else:
             raise ValueError(
                 "values allowed: {`omniglot`, `episodic_imagenet`, `episodic_imagenet1k`, `episodic_coco`, " +
-                "`miniimagenet`, `cub`, `fungi`, `aircraft`, `cropdiseases`, `eurosat`, `isic`, `cifar_fs`, `celeba`} "
-                "for dataset_type.\n" +
+                "`miniimagenet`, `cub`, `fungi`, `aircraft`, `cropdiseases`, `eurosat`, `isic`, `dtd`, " +
+                "`cifar_fs`, `celeba` for dataset_type.\n" +
                 "`episodic_imagenet` can also be run with other evaluation datasets: append " +
                 "(_val_cifar, _val_cub, _val_aircraft)"
             )
