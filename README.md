@@ -8,7 +8,7 @@ Edit the `config/config.json` file to start
 
 ```
 "dataset_path": string,
-"dataset_type": {`omniglot`, `episodic_imagenet`, `episodic_imagenet1k`, `episodic_coco`, `miniimagenet`, `cub`, `fungi`, `aircraft`, `cropdiseases`, `eurosat`, `isic`, `dtd`, `cifar_fs`, `celeba`, `episodic_imagenet` can also be run with other evaluation datasets: append (_val_cifar, _val_cub, val_aircraft)},
+"dataset_type": {`omniglot`, `episodic_imagenet`, `episodic_imagenet1k`, `episodic_coco`, `miniimagenet`, `cub`, `fungi`, `aircraft`, `meta_inat`, `cropdiseases`, `eurosat`, `isic`, `dtd`, `cifar_fs`, `celeba`, `episodic_imagenet` can also be run with other evaluation datasets: append (_val_cifar, _val_cub, val_aircraft)},
 "dataset_splits": List[float] (1 for train/test (e.g. [0.8]), 3 for train/val/test),
 "normalize": bool,
 "crop_size": int,

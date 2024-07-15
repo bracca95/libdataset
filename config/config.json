@@ -1,6 +1,6 @@
 {
-    "dataset_path": "/media/lorenzo/D/datasets/dtd",
-    "dataset_type": "dtd",
+    "dataset_path": "/media/lorenzo/D/datasets/psco/meta_inat",
+    "dataset_type": "meta_inat",
     "dataset_splits": [
         0.7,
         0.1,
