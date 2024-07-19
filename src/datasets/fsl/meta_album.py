@@ -82,13 +82,13 @@ class MetaAlbum(FewShotDataset):
         n_cls_val = int(np.floor(self.dataset_config.dataset_splits[1] * len(all_classes)))
         n_cls_test = int(np.floor(self.dataset_config.dataset_splits[2] * len(all_classes)))
         if n_cls_val < 5:
-            class_val = set(random.sample(all_classes, 5))
+            class_val = set(list(all_classes)[:5])
             class_train = all_classes - class_val
             return class_train, class_val, set()
 
         # default behaviour instead
-        class_val = set(random.sample(all_classes, n_cls_val))
-        class_test = set(random.sample((all_classes - class_val), n_cls_test))
+        class_val = set(list(all_classes)[:n_cls_val])
+        class_test = set(list(set(all_classes - class_val))[n_cls_val : (n_cls_val + n_cls_test)])
         class_train = all_classes - class_val - class_test
         return class_train, class_val, class_test
 

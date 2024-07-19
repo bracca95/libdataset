@@ -63,6 +63,9 @@ class DatasetBuilder:
         elif dataset_config.dataset_type == "meta_inat":
             Logger.instance().info("Loading dataset Meta-iNat (type FewShotDataset)")
             return Metainat(dataset_config)
+        elif dataset_config.dataset_type == "meta_album":
+            Logger.instance().info("Loading dataset MetaAlbum (type FewShotDataset)")
+            return MetaAlbum(dataset_config)
         elif dataset_config.dataset_type == "dtd":
             Logger.instance().info("Loading dataset Dtd (type FewShotDataset)")
             return Dtd(dataset_config)
@@ -78,9 +81,6 @@ class DatasetBuilder:
         elif dataset_config.dataset_type == "celeba":
             Logger.instance().info("Loading dataset Omniglot (type Dataset)")
             return CelebaWrapper(dataset_config)
-        elif dataset_config.dataset_type == "meta_album":
-            Logger.instance().info("Loading dataset Omniglot (type Dataset)")
-            return MetaAlbum(dataset_config)
         else:
             raise ValueError(
                 "values allowed: {`omniglot`, `episodic_imagenet`, `episodic_imagenet1k`, `episodic_coco`, " +
