@@ -19,6 +19,7 @@ class General:
 class DatasetConst:
     CONFIG_DATASET_PATH = "dataset_path"
     CONFIG_DATASET_TYPE = "dataset_type"
+    CONFIG_DATASET_ID = "dataset_id"
     CONFIG_DATASET_SPLITS = "dataset_splits"
     CONFIG_NORMALIZE = "normalize"
     CONFIG_AUGMENT_ONLINE = "augment_online"

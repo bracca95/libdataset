@@ -14,6 +14,7 @@ from .fsl.fungi import Fungi
 from .fsl.aircraft import Aircraft
 from .fsl.meta_inat import Metainat
 from .fsl.meta_test import CropDiseases, EuroSat, Isic
+from .fsl.meta_album import MetaAlbum
 from .torch.celeba import CelebaWrapper
 from ..utils.config_parser import DatasetConfig
 from ..utils.tools import Logger
@@ -77,11 +78,14 @@ class DatasetBuilder:
         elif dataset_config.dataset_type == "celeba":
             Logger.instance().info("Loading dataset Omniglot (type Dataset)")
             return CelebaWrapper(dataset_config)
+        elif dataset_config.dataset_type == "meta_album":
+            Logger.instance().info("Loading dataset Omniglot (type Dataset)")
+            return MetaAlbum(dataset_config)
         else:
             raise ValueError(
                 "values allowed: {`omniglot`, `episodic_imagenet`, `episodic_imagenet1k`, `episodic_coco`, " +
-                "`miniimagenet`, `cub`, `fungi`, `aircraft`, `meta_inat`, `cropdiseases`, `eurosat`, `isic`, `dtd`, " +
-                "`cifar_fs`, `celeba` for dataset_type.\n" +
+                "`miniimagenet`, `cub`, `fungi`, `aircraft`, `meta_inat`, `meta_album`, `cropdiseases`, `eurosat`, " +
+                "`isic`, `dtd`, `cifar_fs`, `celeba` for dataset_type.\n" +
                 "`episodic_imagenet` can also be run with other evaluation datasets: append " +
                 "(_val_cifar, _val_cub, _val_aircraft)"
             )
