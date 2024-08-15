@@ -81,6 +81,11 @@ class MetaAlbum(FewShotDataset):
         # check if there is enough space for a validation set (at least 5 classes), otherwise split train/val
         n_cls_val = int(np.floor(self.dataset_config.dataset_splits[1] * len(all_classes)))
         n_cls_test = int(np.floor(self.dataset_config.dataset_splits[2] * len(all_classes)))
+
+        # test only
+        if int(np.ceil(self.dataset_config.dataset_splits[2])) == 1:
+            return set(), set(), all_classes
+
         if n_cls_val < 5:
             class_val = set(list(all_classes)[:5])
             class_train = all_classes - class_val
