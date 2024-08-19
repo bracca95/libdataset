@@ -15,6 +15,7 @@ from .fsl.aircraft import Aircraft
 from .fsl.meta_inat import Metainat
 from .fsl.meta_test import CropDiseases, EuroSat, Isic
 from .fsl.meta_album import MetaAlbum
+from .fsl.wikiart import WikiArtArtist, WikiArtGenre, WikiArtStyle
 from .torch.celeba import CelebaWrapper
 from ..utils.config_parser import DatasetConfig
 from ..utils.tools import Logger
@@ -78,6 +79,15 @@ class DatasetBuilder:
         elif dataset_config.dataset_type == "isic":
             Logger.instance().info("Loading dataset Isic (type MetaTest)")
             return Isic(dataset_config)
+        elif dataset_config.dataset_type == "wikiart_artist":
+            Logger.instance().info("Loading dataset WikiArt-Artist (type MetaTest)")
+            return WikiArtArtist(dataset_config)
+        elif dataset_config.dataset_type == "wikiart_genre":
+            Logger.instance().info("Loading dataset WikiArt-Genre (type MetaTest)")
+            return WikiArtGenre(dataset_config)
+        elif dataset_config.dataset_type == "wikiart_style":
+            Logger.instance().info("Loading dataset WikiArt-Style (type MetaTest)")
+            return WikiArtStyle(dataset_config)
         elif dataset_config.dataset_type == "celeba":
             Logger.instance().info("Loading dataset Omniglot (type Dataset)")
             return CelebaWrapper(dataset_config)
@@ -85,7 +95,7 @@ class DatasetBuilder:
             raise ValueError(
                 "values allowed: {`omniglot`, `episodic_imagenet`, `episodic_imagenet1k`, `episodic_coco`, " +
                 "`miniimagenet`, `cub`, `fungi`, `aircraft`, `meta_inat`, `meta_album`, `cropdiseases`, `eurosat`, " +
-                "`isic`, `dtd`, `cifar_fs`, `celeba` for dataset_type.\n" +
+                "`isic`, `dtd`, `cifar_fs`, `celeba`, wikiart {_artist, _genre, _style} for dataset_type.\n" +
                 "`episodic_imagenet` can also be run with other evaluation datasets: append " +
                 "(_val_cifar, _val_cub, _val_aircraft)"
             )

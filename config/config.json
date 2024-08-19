@@ -1,7 +1,7 @@
 {
-    "dataset_path": "/media/lorenzo/D/datasets/meta_album",
-    "dataset_type": "meta_album",
-    "dataset_id": [44330],
+    "dataset_path": "/media/lorenzo/D/datasets/wikiart",
+    "dataset_type": "wikiart_artist",
+    "dataset_id": null,
     "dataset_splits": [
         0.64,
         0.16,
