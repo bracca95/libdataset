@@ -62,6 +62,11 @@ class WikiArt(MetaTest):
         missing = set(image_list) - set(real_files)
         df = df[~df[self.COL_FILE].isin([m.replace(dataset_config.dataset_path + os.sep, "") for m in missing])]
 
+        # keep only artists with at least 10 entries
+        artist_counts = df[self.COL_ARTIST].value_counts()
+        artists_to_keep = artist_counts[artist_counts >= 10].index
+        df = df[df[self.COL_ARTIST].isin(artists_to_keep)]
+
         return df
 
 
