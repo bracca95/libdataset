@@ -80,6 +80,7 @@ class FewShotDataset(DatasetWrapper):
         # basic operations: always performed
         basic_transf = transforms.Compose([
             transforms.Resize((self.dataset_config.image_size, self.dataset_config.image_size)),
+            transforms.RandomHorizontalFlip(),
             transforms.ToTensor(),
             DatasetLauncher.normalize_or_identity(self.dataset_config)
         ])
