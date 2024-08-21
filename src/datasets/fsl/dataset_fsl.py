@@ -107,7 +107,11 @@ class FewShotDataset(DatasetWrapper):
             indices = torch.where(tensor_labels == label_ints.unsqueeze(1))[1]
             images = [self.image_list[i] for i in indices]
             labels = [self.label_list[i] for i in indices]
-            return images, labels
+            # Remap labels from 0 to n for training without meta-learning
+            unique_labels = sorted(set(labels))
+            label_mapping = {original_label: new_label for new_label, original_label in enumerate(unique_labels)}
+            remapped_labels = [label_mapping[label] for label in labels]
+            return images, remapped_labels
         
         # create DatasetLauncher with augmentation for training if required
         augment = self.dataset_config.augment_online
