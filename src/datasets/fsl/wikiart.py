@@ -14,8 +14,17 @@ from ....config.consts import General as _CG
 
 
 class WikiArt(MetaTest):
+    """WikiArt dataset (wrapper)
 
-    N_IMAGES = 80675 # 81444 need to remove corrupted filenames
+    The WikiArt dataset originally contains 1119 artists, 11 genres and 27 styles. Some use 129 artist, but most of them
+    are grouped under "0", which does not make any sense. We further process it to removes some corrupted filenames
+    and the artists that do not have at least 10 paintings. Finally, we have 966 unique artists.
+
+    SeeAlso:
+        [download](https://www.kaggle.com/datasets/steubk/wikiart)
+    """
+
+    N_IMAGES = 80091 # (80675, 81444) (<10 samples artist, corrupted filenames)
     COL_FILE = "file"
     COL_ARTIST = "artist"
     COL_GENRE = "genre"

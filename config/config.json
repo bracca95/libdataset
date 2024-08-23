@@ -1,6 +1,6 @@
 {
-    "dataset_path": "/media/lorenzo/D/datasets/wikiart",
-    "dataset_type": "wikiart_artist",
+    "dataset_path": "/media/lorenzo/D/datasets/pacs",
+    "dataset_type": "pacs_domain",
     "dataset_id": null,
     "dataset_splits": [
         0.64,

@@ -10,6 +10,7 @@ from .fsl.miniimagenet import MiniImagenet
 from .fsl.cifar import CifarFs
 from .fsl.cub import Cub
 from .fsl.dtd import Dtd
+from .fsl.pacs import PacsObject, PacsDomain
 from .fsl.fungi import Fungi
 from .fsl.aircraft import Aircraft
 from .fsl.meta_inat import Metainat
@@ -88,14 +89,21 @@ class DatasetBuilder:
         elif dataset_config.dataset_type == "wikiart_style":
             Logger.instance().info("Loading dataset WikiArt-Style (type MetaTest)")
             return WikiArtStyle(dataset_config)
+        elif dataset_config.dataset_type == "pacs_object":
+            Logger.instance().info("Loading dataset PACS-Object (type MetaTest)")
+            return PacsObject(dataset_config)
+        elif dataset_config.dataset_type == "pacs_domain":
+            Logger.instance().info("Loading dataset PACS-Domain (type MetaTest)")
+            return PacsDomain(dataset_config)
         elif dataset_config.dataset_type == "celeba":
-            Logger.instance().info("Loading dataset Omniglot (type Dataset)")
+            Logger.instance().info("Loading dataset CelebA (type Dataset)")
             return CelebaWrapper(dataset_config)
         else:
             raise ValueError(
                 "values allowed: {`omniglot`, `episodic_imagenet`, `episodic_imagenet1k`, `episodic_coco`, " +
                 "`miniimagenet`, `cub`, `fungi`, `aircraft`, `meta_inat`, `meta_album`, `cropdiseases`, `eurosat`, " +
-                "`isic`, `dtd`, `cifar_fs`, `celeba`, wikiart {_artist, _genre, _style} for dataset_type.\n" +
+                "`isic`, `dtd`, `cifar_fs`, `celeba`, `wikiart` {_artist, _genre, _style}, `pacs` {_object, _domain} " +
+                "for dataset_type.\n" +
                 "`episodic_imagenet` can also be run with other evaluation datasets: append " +
                 "(_val_cifar, _val_cub, _val_aircraft)"
             )
