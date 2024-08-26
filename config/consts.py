@@ -6,6 +6,11 @@ T = TypeVar("T")
 PlatePathsDict = TypedDict("PlatePathsDict", { "ch_1": str, "ch_2": str })
 
 
+class CustomDatasetConsts:
+    EpisodicCoco = 11111
+    Fungi = 22222
+
+
 class General:
     DEFAULT_BOOL = False
     DEFAULT_INT = 0
