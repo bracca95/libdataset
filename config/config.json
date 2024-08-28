@@ -1,10 +1,11 @@
 {
-    "dataset_path": "/media/lorenzo/D/datasets/EuroSAT_RGB",
-    "dataset_type": "eurosat",
+    "dataset_path": "/media/lorenzo/D/datasets/pacs",
+    "dataset_type": "pacs_domain",
+    "dataset_id": null,
     "dataset_splits": [
-        0.7,
-        0.1,
-        0.2
+        0.64,
+        0.16,
+        0.20
     ],
     "normalize": false,
     "crop_size": 224,

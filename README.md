@@ -1,14 +1,15 @@
-# Baseline Project for Defect Views dataset
+# A repo to manage them all: libdataset
 
 ## Dataset
-Your own dataset can be built by implementing the abstract class `DatasetWrapper` in `src.dataset.dataset.py`
+The idea is to have a unique repository to manage dataset for deep learning projects. Your own dataset can be built by implementing the abstract class `DatasetWrapper` in `src.dataset.dataset.py`
 
 ## Dataset Config
 Edit the `config/config.json` file to start
 
 ```
 "dataset_path": string,
-"dataset_type": {`opt6`, `opt_bckg`, `opt_double`, `opt_double_inference`, `binary`, `qplusv1`, `qplusv2`, `qplus_double`, `omniglot`, `episodic_imagenet`, `episodic_imagenet1k`, `episodic_coco`, `miniimagenet`, `opt_yolo_train`, `opt_yolo_test`, `cub`, `fungi`, `aircraft`, `cropdiseases`, `eurosat`, `isic`, `cifar_fs`, `celeba`. `episodic_imagenet` can also be run with other evaluation datasets: append (_val_cifar, _val_cub, val_aircraft)},
+"dataset_type": {`omniglot`, `episodic_imagenet`, `episodic_imagenet1k`, `episodic_coco`, `miniimagenet`, `cub`, `fungi`, `aircraft`, `meta_inat`, `meta_album`, `cropdiseases`, `eurosat`, `isic`, `dtd`, `cifar_fs`, `celeba`, `wikiart` {_artist, _genre, _style}, `pacs` {_object, _domain} for dataset_type. `episodic_imagenet` can also be run with other evaluation datasets: append (_val_cifar, _val_cub, val_aircraft)},
+"dataset_id": Optional[List[int]] (param for MetaAlbum datasets only)
 "dataset_splits": List[float] (1 for train/test (e.g. [0.8]), 3 for train/val/test),
 "normalize": bool,
 "crop_size": int,

@@ -57,6 +57,7 @@ def to_class(c: Type[T], x: Any) -> dict:
 class DatasetConfig:
     dataset_path: str = _CG.DEFAULT_STR
     dataset_type: str = _CG.DEFAULT_STR
+    dataset_id: Optional[List[int]] = None
     dataset_splits: List[float] = field(default_factory=list)
     normalize: bool = _CG.DEFAULT_BOOL
     crop_size: int = _CG.DEFAULT_INT
@@ -80,6 +81,7 @@ class DatasetConfig:
                 
         try:
             dataset_type = from_str(obj.get(_CD.CONFIG_DATASET_TYPE))
+            dataset_id = from_union([lambda x: from_list(from_int, x), from_none], obj.get(_CD.CONFIG_DATASET_ID))
             dataset_splits = from_list(lambda x: from_float(x), obj.get(_CD.CONFIG_DATASET_SPLITS))
             normalize = from_bool(obj.get(_CD.CONFIG_NORMALIZE))
             crop_size = from_int(obj.get(_CD.CONFIG_CROP_SIZE))
@@ -109,16 +111,19 @@ class DatasetConfig:
                 pass
             else:
                 raise ValueError("the sum for dataset_splits must be 1")
+            
+        if dataset_type == "meta_album" and not dataset_id:
+            raise ValueError(f"If you want to use `meta_album`, please specify a non-empty dataset_id List[int]")
         
         Logger.instance().info(f"DatasetConfig deserialized: " +
-            f"dataset_path: {dataset_path}, dataset_type: {dataset_type}, dataset_splits: {dataset_splits}, " +
-            f"normalize: {normalize}, augment_online: {augment_online}, augment_offline: {augment_offline}, " +
-            f"augment_times: {augment_times}, dataset mean: {dataset_mean}, dataset_std: {dataset_std}, " +
-            f"crop_size: {crop_size}, image_size: {image_size}"
+            f"dataset_path: {dataset_path}, dataset_type: {dataset_type}, dataset_id: {dataset_id}, " +
+            f"dataset_splits: {dataset_splits}, normalize: {normalize}, augment_online: {augment_online}, " +
+            f"augment_offline: {augment_offline}, augment_times: {augment_times}, dataset mean: {dataset_mean}, " +
+            f"dataset_std: {dataset_std}, crop_size: {crop_size}, image_size: {image_size}"
         )
         
         return DatasetConfig(
-            dataset_path, dataset_type, dataset_splits, normalize, crop_size, image_size, augment_online, 
+            dataset_path, dataset_type, dataset_id, dataset_splits, normalize, crop_size, image_size, augment_online, 
             augment_offline, augment_times, dataset_mean, dataset_std
         )
 
@@ -128,6 +133,7 @@ class DatasetConfig:
         # if you do not want to write null values, add a field to result if and only if self.field is not None
         result[_CD.CONFIG_DATASET_PATH] = from_str(self.dataset_path)
         result[_CD.CONFIG_DATASET_TYPE] = from_str(self.dataset_type)
+        result[_CD.CONFIG_DATASET_ID] = from_union([lambda x: from_list(from_int, x), from_none], self.dataset_id)
         result[_CD.CONFIG_DATASET_SPLITS] = from_list(lambda x: from_float(x), self.dataset_splits)
         result[_CD.CONFIG_NORMALIZE] = from_bool(self.normalize)
         result[_CD.CONFIG_CROP_SIZE] = from_int(self.crop_size)

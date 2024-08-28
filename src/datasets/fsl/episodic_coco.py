@@ -11,7 +11,7 @@ from torch.utils.data import Dataset
 from .dataset_fsl import FewShotDataset
 from ...utils.tools import Logger, Tools
 from ...utils.config_parser import DatasetConfig
-from ....config.consts import General as _CG
+from ....config.consts import CustomDatasetConsts as _CDC
 
 
 class EpisodicCoco(FewShotDataset):
@@ -47,6 +47,7 @@ class EpisodicCoco(FewShotDataset):
 
     def __init__(self, dataset_config: DatasetConfig):
         self.root_coco = self.__init_dataset(dataset_config)
+        self.did = _CDC.EpisodicCoco
         super().__init__(dataset_config)
 
     def get_image_list(self, filt: Optional[List[str]]) -> List[str]:

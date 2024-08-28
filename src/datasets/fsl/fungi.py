@@ -8,7 +8,7 @@ from typing import List, Set, Tuple, Optional
 from .dataset_fsl import FewShotDataset
 from ...utils.config_parser import DatasetConfig
 from ...utils.tools import Logger, Tools
-from ....config.consts import General as _CG
+from ....config.consts import CustomDatasetConsts as _CDC
 
 class Fungi(FewShotDataset):
     """Fungi FSL split
@@ -28,6 +28,7 @@ class Fungi(FewShotDataset):
     IMG_DIR = "images"
 
     def __init__(self, dataset_config: DatasetConfig):
+        self.did = _CDC.Fungi
         self.dataset_config = dataset_config
         self.img_dir_path = Tools.validate_path(os.path.join(self.dataset_config.dataset_path, self.IMG_DIR))
         self.split_dir = Tools.validate_path(os.path.join(os.path.abspath(__file__).rsplit("src", 1)[0], "splits", "fungi"))
