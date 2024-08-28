@@ -75,7 +75,7 @@ class FewShotDataset(DatasetWrapper):
             img_list.insert(0, img_pil)
 
         if augment is not None and "support" in [a.lower() for a in augment]:
-            img_list = self.ssl_augment_basic(img_pil, self.dataset_config, repeat, strong=True)
+            img_list = self.ssl_augment_basic(img_pil, self.dataset_config, 2*repeat, strong=True)
         
         # basic operations: always performed
         basic_transf = transforms.Compose([
