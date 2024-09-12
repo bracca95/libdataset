@@ -25,6 +25,7 @@ class MetaAlbum(FewShotDataset):
 
     OPENML_DATASET_LEAF = f"{os.sep}".join("org/openml/www/datasets".split("/"))
     DIR_IMAGES = "images"
+    NAME_PRFX = "Meta_Album_"
 
     # dataframe info
     COL_FILENAME = "FILE_NAME"
@@ -43,9 +44,18 @@ class MetaAlbum(FewShotDataset):
         openml.config.set_root_cache_directory(cache_dir_root)
         self.curr_dataset_path = os.path.join(cache_dir_root, self.OPENML_DATASET_LEAF, str(self.did))
         
-        # download dataset
-        dataset = openml.datasets.get_dataset(self.did, download_all_files=True)
-        self.x, self.y, _, _ = dataset.get_data()
+        # load dataset (if already downloaded, do not use openml API)
+        if str(self.did) not in os.listdir(os.path.join(cache_dir_root, self.OPENML_DATASET_LEAF)):
+            Logger.instance().warning(f"meta_album dataset {str(self.did)} is going to be downloaded")
+            dataset = openml.datasets.get_dataset(self.did, download_all_files=True)
+            self.x, self.y, _, _ = dataset.get_data()
+        else:
+            Logger.instance().debug(f"OpenML dataset {self.did} found, no need to download")
+            croissant = Tools.read_json(os.path.join(self.curr_dataset_path, f"dataset_{str(self.did)}_croissant.json"))
+            if croissant["name"].startswith(self.NAME_PRFX):
+                img_folder_name = croissant["name"][len(self.NAME_PRFX):]
+            img_folder = Tools.validate_path(os.path.join(self.curr_dataset_path, img_folder_name))
+            self.x = pd.read_csv(os.path.join(img_folder, "labels.csv"))
 
         super().__init__(dataset_config)
 
