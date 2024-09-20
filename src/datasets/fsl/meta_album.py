@@ -31,6 +31,8 @@ class MetaAlbum(FewShotDataset):
     COL_FILENAME = "FILE_NAME"
     COL_CATEGORY = "CATEGORY"
 
+    LOWER_BOUND = 10
+
     def __init__(self, dataset_config: DatasetConfig, did: Optional[int]=None):
         if did is None:
             Logger.instance().warning(
@@ -48,14 +50,16 @@ class MetaAlbum(FewShotDataset):
         if str(self.did) not in os.listdir(os.path.join(cache_dir_root, self.OPENML_DATASET_LEAF)):
             Logger.instance().warning(f"meta_album dataset {str(self.did)} is going to be downloaded")
             dataset = openml.datasets.get_dataset(self.did, download_all_files=True)
-            self.x, self.y, _, _ = dataset.get_data()
+            self.df_meta_album, self.y, _, _ = dataset.get_data()
         else:
             Logger.instance().debug(f"OpenML dataset {self.did} found, no need to download")
             croissant = Tools.read_json(os.path.join(self.curr_dataset_path, f"dataset_{str(self.did)}_croissant.json"))
             if croissant["name"].startswith(self.NAME_PRFX):
                 img_folder_name = croissant["name"][len(self.NAME_PRFX):]
             img_folder = Tools.validate_path(os.path.join(self.curr_dataset_path, img_folder_name))
-            self.x = pd.read_csv(os.path.join(img_folder, "labels.csv"))
+            self.df_meta_album = pd.read_csv(os.path.join(img_folder, "labels.csv"))
+
+        self.df_meta_album = self._check_meta_album_fsl()
 
         super().__init__(dataset_config)
 
@@ -65,18 +69,36 @@ class MetaAlbum(FewShotDataset):
         avail_ext = ("jpeg", "jpg", "png", "PNG", "JPG")
         img_list = glob(os.path.join(self.curr_dataset_path, leaf_dirname, self.DIR_IMAGES, "*"))
         img_list = list(filter(lambda x: x.endswith(avail_ext), img_list))
+
+        # check for classes that have less than lower_bound images and remove them from the list
+        if len(self.df_meta_album[self.COL_FILENAME]) < len(img_list):
+            img_names_set = set([os.path.basename(img) for img in img_list])
+            df_filename_set = set(self.df_meta_album[self.COL_FILENAME].values)
+            missing = img_names_set - df_filename_set
+
+            for i, img in enumerate(img_list):
+                if os.path.basename(img) in missing:
+                    img_list.pop(i)
+
         return img_list
     
     def get_label_list(self) -> List[int]:
         if self.image_list is None:
             self.image_list = self.get_image_list(None)
 
-        df: pd.DataFrame = self.x.copy()
+        df: pd.DataFrame = self.df_meta_album.copy()
 
         # order classes as image_list, not dataframe
         img_names = list(map(lambda x: os.path.basename(x), self.image_list))
         df.set_index(self.COL_FILENAME, inplace=True)
         ordered_classes = [df.loc[image_name, self.COL_CATEGORY] for image_name in img_names]
+
+        # ERROR MANAGER: there are wrong type values in the COL_CATEGORY as some are seen as pd.Series
+        if any(type(oc) is pd.Series for oc in ordered_classes):
+            Logger.instance().warning(f"Dataset {self.did} has wrong values for the category column (pd.Series)")
+            for i, _ in enumerate(ordered_classes):
+                if type(ordered_classes[i]) is pd.Series:
+                    ordered_classes[i] = list(ordered_classes[i])[0]
 
         # label to idx and vice versa to be compliant to FewShotDataset
         self.label_to_idx = { val: i for i, val in enumerate(set(ordered_classes)) }
@@ -86,7 +108,7 @@ class MetaAlbum(FewShotDataset):
         return [self.label_to_idx[c] for c in ordered_classes]
     
     def split_method(self) -> Tuple[Set[str], Set[str], Set[str]]:
-        all_classes = set(list(self.x[self.COL_CATEGORY]))
+        all_classes = set(list(self.df_meta_album[self.COL_CATEGORY]))
 
         # check if there is enough space for a validation set (at least 5 classes), otherwise split train/val
         n_cls_val = int(np.floor(self.dataset_config.dataset_splits[1] * len(all_classes)))
@@ -108,4 +130,24 @@ class MetaAlbum(FewShotDataset):
         return class_train, class_val, class_test
 
     def expected_length(self):
-        return len(self.x)
+        return len(self.df_meta_album)
+
+    def _check_meta_album_fsl(self) -> pd.DataFrame:
+        # count elements per class and remove those below lower bound
+        class_counts = self.df_meta_album.groupby(self.COL_CATEGORY)[self.COL_FILENAME].count()
+        filt_classes = class_counts[class_counts < self.LOWER_BOUND].index.tolist()
+        df_filtered = self.df_meta_album[~self.df_meta_album[self.COL_CATEGORY].isin(filt_classes)]
+
+        if len(filt_classes) > 0:
+            filt_dict = []
+            tot_filt = 0
+            for fc in filt_classes:
+                filt_dict.append(f'{fc}: {class_counts[fc]}')
+                tot_filt += class_counts[fc]
+            
+            Logger.instance().warning(
+                f"Dataset {self.did} has classes that do not reach the min number of samples ({self.LOWER_BOUND}): \n" +
+                f"{filt_dict} \nTotal number of elements that will be removed: {tot_filt}"
+            )
+
+        return df_filtered

@@ -152,6 +152,38 @@ class FewShotDataset(DatasetWrapper):
         
         return [aug_method(x) for aug_method in random_transforms]
 
+    @staticmethod
+    def _get_sparse_classes(img_dir_path: str, lower_bound: int=10, *args) -> Set[str]:
+        """Return set of classes that have few elements
+        
+        For FSL purposes, it may be necessary that each class contains a minimum number of elements (default to 10). If
+        this requirement is not met, add the class name to the set
+        
+        Args:
+            img_dir_path (str): root dir where all the directories (classes) can be found
+            lower_bound (int): minimum number of elements per class
+            *args (List[str]): subfolders, if necessary to append after `img_dir_path`
+
+        Returns:
+            sparse (Set[str]): classes that have n_elems < lower_bound
+        """
+
+        sparse: Set[str] = set()
+        sparse_dict = {}
+        for c in os.listdir(img_dir_path, *args):
+            n_elems = len(os.listdir(os.path.join(img_dir_path, *args, c)))
+            if n_elems < lower_bound:
+                sparse_dict[c] = n_elems
+
+        if len(sparse_dict.keys()) > 0:
+            Logger.instance().warning(
+                f"This dataset has classes that do not reach the min number of samples ({lower_bound}): \n" +
+                f"{sparse_dict}\nTotal number of elements that will be removed: {sum(sparse_dict.values())}"
+            )
+
+        sparse = set(sparse_dict.keys())
+        return sparse
+
     @property
     def image_list(self) -> List[str]:
         return self._image_list
