@@ -108,6 +108,7 @@ class MetaAlbum(FewShotDataset):
         return [self.label_to_idx[c] for c in ordered_classes]
     
     def split_method(self) -> Tuple[Set[str], Set[str], Set[str]]:
+        Logger.instance().info(f"Number of images for dataset {self.did}: {len(self.image_list)}")
         all_classes = set(list(self.df_meta_album[self.COL_CATEGORY]))
 
         # check if there is enough space for a validation set (at least 5 classes), otherwise split train/val
@@ -121,12 +122,15 @@ class MetaAlbum(FewShotDataset):
         if n_cls_val < 5:
             class_val = set(list(all_classes)[:5])
             class_train = all_classes - class_val
+            Logger.instance().warning(f"Not enough classes for valid in dataset {self.did}: using {len(class_train)}")
             return class_train, class_val, set()
 
         # default behaviour instead
         class_val = set(list(all_classes)[:n_cls_val])
         class_test = set(list(set(all_classes - class_val))[n_cls_val : (n_cls_val + n_cls_test)])
         class_train = all_classes - class_val - class_test
+        Logger.instance().info(f"train/val/test split classes: {len(class_train)}, {len(class_val)}, {len(class_test)}")
+        
         return class_train, class_val, class_test
 
     def expected_length(self):
@@ -147,7 +151,9 @@ class MetaAlbum(FewShotDataset):
             
             Logger.instance().warning(
                 f"Dataset {self.did} has classes that do not reach the min number of samples ({self.LOWER_BOUND}): \n" +
-                f"{filt_dict} \nTotal number of elements that will be removed: {tot_filt}"
+                f"{filt_dict}\n" +
+                f"Total number of classes that will be be removed {len(filt_dict)}. " +
+                f"Total number of elements that will be removed: {tot_filt}"
             )
 
         return df_filtered

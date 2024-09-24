@@ -177,8 +177,10 @@ class FewShotDataset(DatasetWrapper):
 
         if len(sparse_dict.keys()) > 0:
             Logger.instance().warning(
-                f"This dataset has classes that do not reach the min number of samples ({lower_bound}): \n" +
-                f"{sparse_dict}\nTotal number of elements that will be removed: {sum(sparse_dict.values())}"
+                f"{__class__.__name__} has classes that do not reach the min number of samples ({lower_bound}): \n" +
+                f"{sparse_dict}\n" +
+                f"Total number of classes that will be be removed {len(sparse_dict.keys())}. " +
+                f"Total number of elements that will be removed: {sum(sparse_dict.values())}"
             )
 
         sparse = set(sparse_dict.keys())
