@@ -1,5 +1,6 @@
 import os
 import torch
+import numpy as np
 
 from abc import abstractmethod
 from PIL import Image
@@ -185,6 +186,21 @@ class FewShotDataset(DatasetWrapper):
 
         sparse = set(sparse_dict.keys())
         return sparse
+
+    @staticmethod
+    def get_n_classes_via_splits(split_ratio: float, n_classes: int) -> Optional[int]:
+        # return None if the current split is not required
+        if split_ratio < _CG.EPS:
+            return None
+        
+        # get effective required number of classes and check if it reaches the minimum number for FSL
+        n_cls_expected = int(np.floor(split_ratio * n_classes))
+        if n_cls_expected < 5:
+            msg = f"The number of available classes does not allow the required split. Forcing to be 5"
+            Logger.instance().warning(msg)
+            n_cls_expected = 5
+
+        return n_cls_expected
 
     @property
     def image_list(self) -> List[str]:

@@ -109,29 +109,56 @@ class MetaAlbum(FewShotDataset):
     
     def split_method(self) -> Tuple[Set[str], Set[str], Set[str]]:
         Logger.instance().info(f"Number of images for dataset {self.did}: {len(self.image_list)}")
-        all_classes = set(list(self.df_meta_album[self.COL_CATEGORY]))
-
-        # check if there is enough space for a validation set (at least 5 classes), otherwise split train/val
-        n_cls_val = int(np.floor(self.dataset_config.dataset_splits[1] * len(all_classes)))
-        n_cls_test = int(np.floor(self.dataset_config.dataset_splits[2] * len(all_classes)))
+        
+        # pay attention: we ensure that the elements are unique by set, then convert to list to have a precise order
+        all_classes: List[str] = sorted(set(self.df_meta_album[self.COL_CATEGORY].tolist()))
+        n_avail_cls = len(all_classes)
 
         # test only
-        if int(np.ceil(self.dataset_config.dataset_splits[2])) == 1:
-            return set(), set(), all_classes
+        if (1.0 - _CG.EPS) < self.dataset_config.dataset_splits[2] < (1.0 + _CG.EPS):
+            return set(), set(), set(all_classes)
 
-        if n_cls_val < 5:
-            class_val = set(list(all_classes)[:5])
-            class_train = all_classes - class_val
-            Logger.instance().warning(f"Not enough classes for valid in dataset {self.did}: using {len(class_train)}")
-            return class_train, class_val, set()
+        # get the desired number of classes (minimum always 5, None if float split == 0.0)
+        req_n_train: Optional[int] = self.get_n_classes_via_splits(self.dataset_config.dataset_splits[0], n_avail_cls)
+        req_n_val: Optional[int] = self.get_n_classes_via_splits(self.dataset_config.dataset_splits[1], n_avail_cls)
+        req_n_test: Optional[int] = self.get_n_classes_via_splits(self.dataset_config.dataset_splits[2], n_avail_cls)
 
-        # default behaviour instead
-        class_val = set(list(all_classes)[:n_cls_val])
-        class_test = set(list(set(all_classes - class_val))[n_cls_val : (n_cls_val + n_cls_test)])
-        class_train = all_classes - class_val - class_test
+        # if the required number of classes is larger than the number of available, reduce the amount of largest group
+        req_list: List[Optional[int]] = [req_n_train, req_n_val, req_n_test]
+        req_n_cls: int = sum([r for r in req_list if r is not None])
+        if req_n_cls > n_avail_cls:
+            Logger.instance().warning(f"Trying to reduce the largest split")
+            
+            # get argmax of the largest split
+            values = [val if val is not None else float('-inf') for val in req_list]
+            argmax = values.index(max(values))
+            
+            # get the other two
+            all_indexes = set([0, 1, 2])
+            all_indexes.remove(argmax)
+            argmin_1, argmin_2 = list(all_indexes)
+
+            # remove elements from the largest split
+            req_list[argmax] = n_avail_cls - sum([r for r in [req_list[argmin_1], req_list[argmin_2]] if r is not None])
+
+        # get class names
+        class_train = all_classes[:req_list[0]] if req_list[0] is not None else set()
+        class_test = all_classes[-req_list[2]:] if req_list[2] is not None else set()
+        
+        if req_list[1] is None:
+            class_val = set()
+        elif req_list[0] is not None and req_list[2] is not None:
+            class_val = all_classes[req_list[0] : req_list[0] + req_list[1]]
+        elif req_list[0] is not None and req_list[2] is None:
+            class_val = all_classes[req_list[0] : req_list[0] + req_list[1]]
+        elif req_list[2] is not None and req_list[0] is None:
+            class_val = all_classes[-(req_list[2]+req_list[1]) : -req_list[2]]
+        else:
+            raise ValueError(f"Something went wrong while splitting")
+
         Logger.instance().info(f"train/val/test split classes: {len(class_train)}, {len(class_val)}, {len(class_test)}")
         
-        return class_train, class_val, class_test
+        return set(class_train), set(class_val), set(class_test)
 
     def expected_length(self):
         return len(self.df_meta_album)
