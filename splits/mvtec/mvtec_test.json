@@ -1,0 +1,72 @@
+{
+    "bottle": [
+        "broken_large",
+        "broken_small",
+        "contamination"
+    ],
+    "cable": [
+        "bent_wire",
+        "cable_swap",
+        "combined"
+    ],
+    "capsule": [
+        "crack",
+        "faulty_imprint",
+        "poke"
+    ],
+    "carpet": [
+        "color",
+        "cut",
+        "hole"
+    ],
+    "grid": [
+        "bent",
+        "broken",
+        "glue"
+    ],
+    "hazelnut": [
+        "crack",
+        "cut",
+        "hole"
+    ],
+    "leather": [
+        "color",
+        "cut",
+        "fold"
+    ],
+    "metal_nut": [
+        "bent",
+        "color",
+        "flip"
+    ],
+    "pill": [
+        "color",
+        "combined",
+        "contamination"
+    ],
+    "screw": [
+        "manipulated_front",
+        "scratch_head",
+        "scratch_neck"
+    ],
+    "tile": [
+        "crack",
+        "glue_strip",
+        "gray_stroke"
+    ],
+    "transistor": [
+        "bent_lead",
+        "cut_lead",
+        "damaged_case"
+    ],
+    "wood": [
+        "color",
+        "combined",
+        "hole"
+    ],
+    "zipper": [
+        "broken_teeth",
+        "combined",
+        "fabric_border"
+    ]
+}
