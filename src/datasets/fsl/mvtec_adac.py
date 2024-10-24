@@ -140,7 +140,7 @@ class MetaMvtec(MvtecAdac):
     }
 
     def __init__(self, dataset_config: DatasetConfig, did: Optional[int]=None):
-        self.did = self.check(did)
+        self.did = self.check(dataset_config, did)
         self.curr_class = self.IDS[self.did]
         super().__init__(dataset_config, did)
 
@@ -159,14 +159,23 @@ class MetaMvtec(MvtecAdac):
         
         return set(train_classes), set(test_classes), set(test_classes)
 
-    def check(self, did: Optional[int]) -> int:
+    def check(self, dataset_config: DatasetConfig, did: Optional[int]) -> int:
         if did is None:
-            split_dict = Tools.read_json(self.SPLIT_FILE)
-            first_key, first_val = next(iter(split_dict.items()))
-            msg = f"You are selecting the first ID `{first_key}`. This message should appear only once on top."
-            Logger.instance().warning(msg)
+            if not dataset_config.dataset_id: # null or empty
+                split_dict = Tools.read_json(self.SPLIT_FILE)
+                first_key, first_val = next(iter(split_dict.items()))
+                msg = f"You are selecting the first ID `{first_key}`. This message should appear only once on top."
+                Logger.instance().warning(msg)
 
-            invert_ids_dict = Tools.invert_dict(self.IDS)
-            return invert_ids_dict[first_key]
+                invert_ids_dict = Tools.invert_dict(self.IDS)
+                return invert_ids_dict[first_key]
+
+            if len(dataset_config.dataset_id) == 1:
+                curr_id = dataset_config.dataset_id[0]
+                Logger.instance().warning(f"You are probably calling the dataloader (id = {curr_id})")
+                return curr_id
+            
+            else:
+                raise ValueError(f"Unknown condition for dataset_id")
 
         return did
