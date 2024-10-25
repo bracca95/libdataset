@@ -12,10 +12,13 @@ from ....config.consts import General as _CG
 
 
 class MvtecAdac(FewShotDataset):
-    """Few-shot version for MVTec dataset
+    """Training set of few-shot Adac
 
-    The idea is to use the original test(!) sub-classes of MVTec to define a few-shot learning scenario, where you can
-    learn different types of anomalies and then transfer the knowledge to unkown classes.
+    This class is meant to be used when comparing the supervised learning approach with later adaptation to new tasks
+    to few-shot techniques. We still need to separate training classes from val and test, but we only need the train
+    split here. Use MetaMvtec when testing the adaptation performance.
+    I cannot do the usual split, otherwise the cross-entropy loss would search for a larger label space (the one that
+    includes all the labels) during the training phase: therefore, I strip the training part.
 
     [MVTec-AD](https://www.mvtec.com/company/research/datasets/mvtec-ad)
     """
@@ -33,7 +36,7 @@ class MvtecAdac(FewShotDataset):
 
         # class filter: use only the classes defined in split/mvtec_adac/mvtec_test.json
         split_dict = Tools.read_json(self.SPLIT_FILE)
-        use_classes = split_dict.keys(data_dir)
+        use_classes = split_dict.keys()
         all_classes = os.listdir(data_dir)
         remove_classes = list(set(all_classes) - set(use_classes))
 
@@ -45,7 +48,27 @@ class MvtecAdac(FewShotDataset):
         img_list = list(filter(lambda x: x.endswith(avail_ext), img_list))
         img_list = [img for img in img_list if all(c not in img for c in remove_classes)]
 
-        return img_list
+        # find test defect classes
+        split_dict = Tools.read_json(self.SPLIT_FILE)
+        test_classes = [f"{k}_{v}" for k, v_list in split_dict.items() for v in v_list]
+
+        # adapt image names to defect class names
+        parsed_img_list = [os.path.dirname(img_name.removeprefix(data_dir)) for img_name in img_list]
+        parsed_img_list = [s.replace(os.sep, "_") for s in parsed_img_list]
+        parsed_img_list = [s.replace("_test_", "_").removeprefix("_") for s in parsed_img_list]
+
+        # find indices to remove
+        remove_indices = set()
+        for test_def_class in set(test_classes):
+            for i, parsed_img in enumerate(parsed_img_list):
+                if test_def_class == parsed_img:
+                    remove_indices.add(i)
+
+        # retrieve images to keep
+        keep_indices = set(range(len(parsed_img_list))) - remove_indices
+        train_img_list = list(map(img_list.__getitem__, keep_indices))
+        
+        return train_img_list
     
     def get_label_list(self) -> List[int]:
         data_dir = os.path.join(self.dataset_config.dataset_path, self.DATA_DIR)
@@ -65,11 +88,8 @@ class MvtecAdac(FewShotDataset):
         return [self.label_to_idx[name] for name in parsed_img_list]
     
     def split_method(self) -> Tuple[Set[str], Set[str], Set[str]]:
-        split_dict = Tools.read_json(self.SPLIT_FILE)
-        test_classes = [f"{k}_{v}" for k, v_list in split_dict.items() for v in v_list]
-        train_classes = list(set(self.label_to_idx.keys()) - set(test_classes))
-        
-        return set(train_classes), set(test_classes), set(test_classes)
+        train_classes = set(self.label_to_idx.keys())
+        return train_classes, set(), set()
 
     def expected_length(self):
         raise NotImplementedError
@@ -120,6 +140,13 @@ class MvtecAdac(FewShotDataset):
 
 
 class MetaMvtec(MvtecAdac):
+    """Few-shot version for MVTec dataset
+
+    The idea is to use the original test(!) sub-classes of MVTec to define a few-shot learning scenario, where you can
+    learn different types of anomalies and then transfer the knowledge to unkown classes.
+
+    [MVTec-AD](https://www.mvtec.com/company/research/datasets/mvtec-ad)
+    """
 
     IDS = {
         0: "bottle",
