@@ -2,6 +2,7 @@ from typing import Union
 from torch.utils.data import Dataset
 
 from .dataset import DatasetWrapper
+from .fsl.dagm_adac import DagmAdac, MetaDagm
 from .fsl.mvtec_adac import MvtecAdac, MetaMvtec
 from .fsl.cifar import CifarFs
 from .fsl.miniimagenet import MiniImagenet
@@ -19,6 +20,13 @@ class DatasetBuilder:
         elif dataset_config.dataset_type == "meta_mvtec":
             Logger.instance().debug(f"Loading dataset meta-MVTec")
             return MetaMvtec(dataset_config, None)
+        elif dataset_config.dataset_type == "dagm":
+            Logger.instance().debug(f"Loading dataset DAGM")
+            return DagmAdac(dataset_config)
+        elif dataset_config.dataset_type == "meta_dagm":
+            Logger.instance().debug(f"Loading dataset meta-DAGM")
+            return MetaDagm(dataset_config, None)
+        
         
         # debug
         elif dataset_config.dataset_type == "miniimagenet":
@@ -29,5 +37,5 @@ class DatasetBuilder:
             return CifarFs(dataset_config)
         else:
             raise ValueError(
-                "values allowed: {`mvtec`, `meta_mvtec`}"
+                "values allowed: {`mvtec`, `meta_mvtec`, `dagm`, `meta_dagm`, `miniimagenet`, `cifar_fs`}"
             )

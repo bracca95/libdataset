@@ -12,7 +12,7 @@ from ....config.consts import General as _CG
 
 
 class MvtecAdac(FewShotDataset):
-    """Training set of few-shot Adac
+    """Training set of few-shot MVTec
 
     This class is meant to be used when comparing the supervised learning approach with later adaptation to new tasks
     to few-shot techniques. We still need to separate training classes from val and test, but we only need the train
