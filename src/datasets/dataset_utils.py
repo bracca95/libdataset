@@ -4,7 +4,10 @@ from torch.utils.data import Dataset
 from .dataset import DatasetWrapper
 from .fsl.dagm_adac import DagmAdac, MetaDagm
 from .fsl.mvtec_adac import MvtecAdac, MetaMvtec
+from .fsl.cub import Cub
 from .fsl.cifar import CifarFs
+from .fsl.aircraft import Aircraft
+from .fsl.meta_inat import Metainat
 from .fsl.miniimagenet import MiniImagenet
 from ..utils.config_parser import DatasetConfig
 from ..utils.tools import Logger
@@ -35,6 +38,15 @@ class DatasetBuilder:
         elif dataset_config.dataset_type == "cifar_fs":
             Logger.instance().debug(f"Loading dataset cifar_fs")
             return CifarFs(dataset_config)
+        elif dataset_config.dataset_type == "cub":
+            Logger.instance().debug(f"Loading dataset cub")
+            return Cub(dataset_config)
+        elif dataset_config.dataset_type == "aircraft":
+            Logger.instance().debug(f"Loading dataset aircraft")
+            return Aircraft(dataset_config)
+        elif dataset_config.dataset_type == "meta_inat":
+            Logger.instance().debug(f"Loading dataset meta_inat")
+            return Metainat(dataset_config)
         else:
             raise ValueError(
                 "values allowed: {`mvtec`, `meta_mvtec`, `dagm`, `meta_dagm`, `miniimagenet`, `cifar_fs`}"
