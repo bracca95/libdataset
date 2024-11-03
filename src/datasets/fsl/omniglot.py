@@ -19,16 +19,18 @@ class OmniglotWrapper(FewShotDataset):
     N_IMG_PER_CLASS = 20
     N_CLASSES_TRAIN = 964
     N_CLASSES_TEST = 659
+    DATA_DIR = "omniglot-py"
     TRAIN_DIR = "images_background"
     TEST_DIR = "images_evaluation"
 
     def __init__(self, dataset_config: DatasetConfig):
-        self._check_integrity(dataset_config.dataset_path)
+        self.data_dir = os.path.join(dataset_config.dataset_path, self.DATA_DIR)
+        self._check_integrity(self.data_dir)
         super().__init__(dataset_config)
 
     def get_image_list(self, filt: Optional[List[str]]) -> List[str]:
-        train = glob(os.path.join(self.dataset_config.dataset_path, self.TRAIN_DIR, "*", "character*", "*png"))
-        test = glob(os.path.join(self.dataset_config.dataset_path, self.TEST_DIR, "*", "character*", "*png"))
+        train = glob(os.path.join(self.data_dir, self.TRAIN_DIR, "*", "character*", "*png"))
+        test = glob(os.path.join(self.data_dir, self.TEST_DIR, "*", "character*", "*png"))
         return train + test
     
     def get_label_list(self) -> List[int]:
