@@ -1,6 +1,7 @@
 import os
 import torch
 
+from PIL import Image
 from glob import glob
 from typing import List, Tuple, Set, Optional
 from torch.utils.data import DataLoader, Dataset
@@ -58,7 +59,20 @@ class OmniglotWrapper(FewShotDataset):
         class_train = set([f"{x:04d}" for x in range(1, train_end)])
         class_test = set([f"{x:04d}" for x in range(train_end, test_end)])
 
-        return class_train, set(), class_test
+        return class_train, class_test, class_test
+
+    def load_image(self, path: str, augment: Optional[List[str]]) -> torch.Tensor:
+        img_pil = Image.open(path).convert("L")
+        
+        # basic operations: always performed
+        basic_transf = transforms.Compose([
+            transforms.Resize((self.dataset_config.image_size, self.dataset_config.image_size)),
+            transforms.ToTensor(),
+            DatasetLauncher.normalize_or_identity(self.dataset_config)
+        ])
+
+        # basic case
+        return basic_transf(img_pil)
     
     def expected_length(self) -> int:
         return (self.N_CLASSES_TRAIN + self.N_CLASSES_TEST) * self.N_IMG_PER_CLASS
