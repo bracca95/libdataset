@@ -9,6 +9,10 @@ PlatePathsDict = TypedDict("PlatePathsDict", { "ch_1": str, "ch_2": str })
 class CustomDatasetConsts:
     EpisodicCoco = 11111
     Fungi = 22222
+    Omniglot = 33333
+    CifarFs = 44444
+    Cub = 55555
+    EpisodicImagenet = 66666
 
 
 class General:

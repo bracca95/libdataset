@@ -62,18 +62,22 @@ class OmniglotWrapper(FewShotDataset):
         return class_train, class_test, class_test
 
     def load_image(self, path: str, augment: Optional[List[str]]) -> torch.Tensor:
-        img_pil = Image.open(path).convert("L")
-        
-        # basic operations: always performed
-        basic_transf = transforms.Compose([
-            transforms.Resize((self.dataset_config.image_size, self.dataset_config.image_size)),
-            transforms.ToTensor(),
-            DatasetLauncher.normalize_or_identity(self.dataset_config)
-        ])
+        # grayscale (as it should be) for omniglot
+        if self.dataset_config.dataset_mean is None:
+            img_pil = Image.open(path).convert("L")
+            
+            # basic operations
+            basic_transf = transforms.Compose([
+                transforms.Resize((self.dataset_config.image_size, self.dataset_config.image_size)),
+                transforms.ToTensor(),
+                DatasetLauncher.normalize_or_identity(self.dataset_config)
+            ])
 
-        # basic case
-        return basic_transf(img_pil)
-    
+            return basic_transf(img_pil)
+        
+        # read as RGB if i1k mean and std are used
+        return super().load_image(path, augment)
+
     def expected_length(self) -> int:
         return (self.N_CLASSES_TRAIN + self.N_CLASSES_TEST) * self.N_IMG_PER_CLASS
     
