@@ -18,6 +18,7 @@ from .fsl.meta_test import CropDiseases, EuroSat, Isic
 from .fsl.meta_album import MetaAlbum
 from .fsl.wikiart import WikiArtArtist, WikiArtGenre, WikiArtStyle
 from .torch.celeba import CelebaWrapper
+from .classification.meta_album_csl import MetaAlbumCls
 from ..utils.config_parser import DatasetConfig
 from ..utils.tools import Logger
 
@@ -98,12 +99,15 @@ class DatasetBuilder:
         elif dataset_config.dataset_type == "celeba":
             Logger.instance().info("Loading dataset CelebA (type Dataset)")
             return CelebaWrapper(dataset_config)
+        elif dataset_config.dataset_type == "meta_album_cls":
+            Logger.instance().info("Loading dataset MetaAlbumCls (type DatasetCls)")
+            return MetaAlbumCls(dataset_config)
         else:
             raise ValueError(
                 "values allowed: {`omniglot`, `episodic_imagenet`, `episodic_imagenet1k`, `episodic_coco`, " +
                 "`miniimagenet`, `cub`, `fungi`, `aircraft`, `meta_inat`, `meta_album`, `cropdiseases`, `eurosat`, " +
                 "`isic`, `dtd`, `cifar_fs`, `celeba`, `wikiart` {_artist, _genre, _style}, `pacs` {_object, _domain} " +
-                "for dataset_type.\n" +
+                "`meta_album_cls` for dataset_type.\n" +
                 "`episodic_imagenet` can also be run with other evaluation datasets: append " +
                 "(_val_cifar, _val_cub, _val_aircraft)"
             )

@@ -5,14 +5,14 @@ import pandas as pd
 from glob import glob
 from typing import Optional, List, Set, Tuple
 
-from .dataset_fsl import FewShotDataset
+from .dataset_cls import DatasetCls
 from ...utils.config_parser import DatasetConfig
 from ...utils.tools import Logger, Tools
 from ....config.consts import General as _CG
 
 
-class MetaAlbum(FewShotDataset):
-    """Few-shot set Meta Album
+class MetaAlbumCls(DatasetCls):
+    """Meta Album set for Standard supervised classification
 
     The idea is to use a bunch of dataset to train a model. The exact dataset to download is defined by `did`: if no
     did is provided, the program will read the config file and use the first element of the list (this is usually
@@ -89,8 +89,6 @@ class MetaAlbum(FewShotDataset):
             img_folder = Tools.validate_path(os.path.join(self.curr_dataset_path, img_folder_name))
             self.df_meta_album = pd.read_csv(os.path.join(img_folder, "labels.csv"))
 
-        self.df_meta_album = self._check_meta_album_fsl()
-
         super().__init__(dataset_config)
 
     def get_image_list(self, filt: Optional[List[str]]) -> List[str]:
@@ -111,7 +109,7 @@ class MetaAlbum(FewShotDataset):
                     img_list.pop(i)
 
         return img_list
-    
+
     def get_label_list(self) -> List[int]:
         if self.image_list is None:
             self.image_list = self.get_image_list(None)
@@ -136,81 +134,3 @@ class MetaAlbum(FewShotDataset):
 
         # use mapping to return an int for the corresponding str label
         return [self.label_to_idx[c] for c in ordered_classes]
-    
-    def split_method(self) -> Tuple[Set[str], Set[str], Set[str]]:
-        Logger.instance().info(f"Number of images for dataset {self.did}: {len(self.image_list)}")
-        
-        # pay attention: we ensure that the elements are unique by set, then convert to list to have a precise order
-        all_classes: List[str] = sorted(set(self.df_meta_album[self.COL_CATEGORY].tolist()))
-        n_avail_cls = len(all_classes)
-
-        # test only
-        if (1.0 - _CG.EPS) < self.dataset_config.dataset_splits[2] < (1.0 + _CG.EPS):
-            return set(), set(), set(all_classes)
-
-        # get the desired number of classes (minimum always 5, None if float split == 0.0)
-        req_n_train: Optional[int] = self.get_n_classes_via_splits(self.dataset_config.dataset_splits[0], n_avail_cls)
-        req_n_val: Optional[int] = self.get_n_classes_via_splits(self.dataset_config.dataset_splits[1], n_avail_cls)
-        req_n_test: Optional[int] = self.get_n_classes_via_splits(self.dataset_config.dataset_splits[2], n_avail_cls)
-
-        # if the required number of classes is larger than the number of available, reduce the amount of largest group
-        req_list: List[Optional[int]] = [req_n_train, req_n_val, req_n_test]
-        req_n_cls: int = sum([r for r in req_list if r is not None])
-        if req_n_cls > n_avail_cls:
-            Logger.instance().warning(f"Trying to reduce the largest split")
-            
-            # get argmax of the largest split
-            values = [val if val is not None else float('-inf') for val in req_list]
-            argmax = values.index(max(values))
-            
-            # get the other two
-            all_indexes = set([0, 1, 2])
-            all_indexes.remove(argmax)
-            argmin_1, argmin_2 = list(all_indexes)
-
-            # remove elements from the largest split
-            req_list[argmax] = n_avail_cls - sum([r for r in [req_list[argmin_1], req_list[argmin_2]] if r is not None])
-
-        # get class names
-        class_train = all_classes[:req_list[0]] if req_list[0] is not None else set()
-        class_test = all_classes[-req_list[2]:] if req_list[2] is not None else set()
-        
-        if req_list[1] is None:
-            class_val = set()
-        elif req_list[0] is not None and req_list[2] is not None:
-            class_val = all_classes[req_list[0] : req_list[0] + req_list[1]]
-        elif req_list[0] is not None and req_list[2] is None:
-            class_val = all_classes[req_list[0] : req_list[0] + req_list[1]]
-        elif req_list[2] is not None and req_list[0] is None:
-            class_val = all_classes[-(req_list[2]+req_list[1]) : -req_list[2]]
-        else:
-            raise ValueError(f"Something went wrong while splitting")
-
-        Logger.instance().info(f"train/val/test split classes: {len(class_train)}, {len(class_val)}, {len(class_test)}")
-        
-        return set(class_train), set(class_val), set(class_test)
-
-    def expected_length(self):
-        return len(self.df_meta_album)
-
-    def _check_meta_album_fsl(self) -> pd.DataFrame:
-        # count elements per class and remove those below lower bound
-        class_counts = self.df_meta_album.groupby(self.COL_CATEGORY)[self.COL_FILENAME].count()
-        filt_classes = class_counts[class_counts < self.LOWER_BOUND].index.tolist()
-        df_filtered = self.df_meta_album[~self.df_meta_album[self.COL_CATEGORY].isin(filt_classes)]
-
-        if len(filt_classes) > 0:
-            filt_dict = []
-            tot_filt = 0
-            for fc in filt_classes:
-                filt_dict.append(f'{fc}: {class_counts[fc]}')
-                tot_filt += class_counts[fc]
-            
-            Logger.instance().warning(
-                f"Dataset {self.did} has classes that do not reach the min number of samples ({self.LOWER_BOUND}): \n" +
-                f"{filt_dict}\n" +
-                f"Total number of classes that will be be removed {len(filt_dict)}. " +
-                f"Total number of elements that will be removed: {tot_filt}"
-            )
-
-        return df_filtered

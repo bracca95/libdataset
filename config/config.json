@@ -1,7 +1,7 @@
 {
-    "dataset_path": "/media/lorenzo/D/datasets/pacs",
-    "dataset_type": "pacs_domain",
-    "dataset_id": null,
+    "dataset_path": "/media/lollo/D/datasets/meta_album",
+    "dataset_type": "meta_album_cls",
+    "dataset_id": [44285],
     "dataset_splits": [
         0.64,
         0.16,
