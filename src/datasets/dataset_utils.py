@@ -28,79 +28,79 @@ class DatasetBuilder:
     @staticmethod
     def load_dataset(dataset_config: DatasetConfig) -> Union[DatasetWrapper, Dataset]:
         if dataset_config.dataset_type == "omniglot":
-            Logger.instance().info("Loading dataset Omniglot (type FewShotDataset)")
+            Logger.instance().debug("Loading dataset Omniglot (type FewShotDataset)")
             return OmniglotWrapper(dataset_config)
         elif dataset_config.dataset_type == "episodic_imagenet":
-            Logger.instance().info("Loading dataset EpisodicImagenet (type FewShotDataset)")
+            Logger.instance().debug("Loading dataset EpisodicImagenet (type FewShotDataset)")
             return EpisodicImagenet(dataset_config)
         elif dataset_config.dataset_type == "episodic_imagenet_val_cifar":
-            Logger.instance().info("Loading dataset EpisodicImagenetValCifar (type FewShotDataset)")
+            Logger.instance().debug("Loading dataset EpisodicImagenetValCifar (type FewShotDataset)")
             return EpisodicImagenetValCifar(dataset_config)
         elif dataset_config.dataset_type == "episodic_imagenet_val_cub":
-            Logger.instance().info("Loading dataset EpisodicImagenetValCub (type FewShotDataset)")
+            Logger.instance().debug("Loading dataset EpisodicImagenetValCub (type FewShotDataset)")
             return EpisodicImagenetValCub(dataset_config)
         elif dataset_config.dataset_type == "episodic_imagenet_val_aircraft":
-            Logger.instance().info("Loading dataset EpisodicImagenetValAircraft (type FewShotDataset)")
+            Logger.instance().debug("Loading dataset EpisodicImagenetValAircraft (type FewShotDataset)")
             return EpisodicImagenetValAircraft(dataset_config)
         elif dataset_config.dataset_type == "episodic_imagenet1k":
-            Logger.instance().info("Loading dataset EpisodicImagenet1k (type FewShotDataset)")
+            Logger.instance().debug("Loading dataset EpisodicImagenet1k (type FewShotDataset)")
             return EpisodicImagenet1k(dataset_config)
         elif dataset_config.dataset_type == "episodic_coco":
-            Logger.instance().info("Loading dataset EpisodicCoco (type FewShotDataset)")
+            Logger.instance().debug("Loading dataset EpisodicCoco (type FewShotDataset)")
             return EpisodicCoco(dataset_config)
         elif dataset_config.dataset_type == "miniimagenet":
-            Logger.instance().info("Loading dataset Mini Imagenet (type FewShotDataset)")
+            Logger.instance().debug("Loading dataset Mini Imagenet (type FewShotDataset)")
             return MiniImagenet(dataset_config)
         elif dataset_config.dataset_type == "cifar_fs":
-            Logger.instance().info("Loading dataset CIFAR-FS (type FewShotDataset)")
+            Logger.instance().debug("Loading dataset CIFAR-FS (type FewShotDataset)")
             return CifarFs(dataset_config)
         elif dataset_config.dataset_type == "cub":
-            Logger.instance().info("Loading dataset CUB (type FewShotDataset)")
+            Logger.instance().debug("Loading dataset CUB (type FewShotDataset)")
             return Cub(dataset_config)
         elif dataset_config.dataset_type == "fungi":
-            Logger.instance().info("Loading dataset Fungi (type FewShotDataset)")
+            Logger.instance().debug("Loading dataset Fungi (type FewShotDataset)")
             return Fungi(dataset_config)
         elif dataset_config.dataset_type == "aircraft":
-            Logger.instance().info("Loading dataset Aircraft (type FewShotDataset)")
+            Logger.instance().debug("Loading dataset Aircraft (type FewShotDataset)")
             return Aircraft(dataset_config)
         elif dataset_config.dataset_type == "meta_inat":
-            Logger.instance().info("Loading dataset Meta-iNat (type FewShotDataset)")
+            Logger.instance().debug("Loading dataset Meta-iNat (type FewShotDataset)")
             return Metainat(dataset_config)
         elif dataset_config.dataset_type == "meta_album":
-            Logger.instance().info("Loading dataset MetaAlbum (type FewShotDataset)")
+            Logger.instance().debug("Loading dataset MetaAlbum (type FewShotDataset)")
             return MetaAlbum(dataset_config)
         elif dataset_config.dataset_type == "dtd":
-            Logger.instance().info("Loading dataset Dtd (type FewShotDataset)")
+            Logger.instance().debug("Loading dataset Dtd (type FewShotDataset)")
             return Dtd(dataset_config)
         elif dataset_config.dataset_type == "cropdiseases":
-            Logger.instance().info("Loading dataset CropDiseases (type MetaTest)")
+            Logger.instance().debug("Loading dataset CropDiseases (type MetaTest)")
             return CropDiseases(dataset_config)
         elif dataset_config.dataset_type == "eurosat":
-            Logger.instance().info("Loading dataset EuroSat (type MetaTest)")
+            Logger.instance().debug("Loading dataset EuroSat (type MetaTest)")
             return EuroSat(dataset_config)
         elif dataset_config.dataset_type == "isic":
-            Logger.instance().info("Loading dataset Isic (type MetaTest)")
+            Logger.instance().debug("Loading dataset Isic (type MetaTest)")
             return Isic(dataset_config)
         elif dataset_config.dataset_type == "wikiart_artist":
-            Logger.instance().info("Loading dataset WikiArt-Artist (type MetaTest)")
+            Logger.instance().debug("Loading dataset WikiArt-Artist (type MetaTest)")
             return WikiArtArtist(dataset_config)
         elif dataset_config.dataset_type == "wikiart_genre":
-            Logger.instance().info("Loading dataset WikiArt-Genre (type MetaTest)")
+            Logger.instance().debug("Loading dataset WikiArt-Genre (type MetaTest)")
             return WikiArtGenre(dataset_config)
         elif dataset_config.dataset_type == "wikiart_style":
-            Logger.instance().info("Loading dataset WikiArt-Style (type MetaTest)")
+            Logger.instance().debug("Loading dataset WikiArt-Style (type MetaTest)")
             return WikiArtStyle(dataset_config)
         elif dataset_config.dataset_type == "pacs_object":
-            Logger.instance().info("Loading dataset PACS-Object (type MetaTest)")
+            Logger.instance().debug("Loading dataset PACS-Object (type MetaTest)")
             return PacsObject(dataset_config)
         elif dataset_config.dataset_type == "pacs_domain":
-            Logger.instance().info("Loading dataset PACS-Domain (type MetaTest)")
+            Logger.instance().debug("Loading dataset PACS-Domain (type MetaTest)")
             return PacsDomain(dataset_config)
         elif dataset_config.dataset_type == "celeba":
-            Logger.instance().info("Loading dataset CelebA (type Dataset)")
+            Logger.instance().debug("Loading dataset CelebA (type Dataset)")
             return CelebaWrapper(dataset_config)
         elif dataset_config.dataset_type == "meta_album_cls":
-            Logger.instance().info("Loading dataset MetaAlbumCls (type DatasetCls)")
+            Logger.instance().debug("Loading dataset MetaAlbumCls (type DatasetCls)")
             return MetaAlbumCls(dataset_config)
         else:
             raise ValueError(

@@ -100,7 +100,7 @@ class MetaAlbum(FewShotDataset):
         img_list = glob(os.path.join(self.curr_dataset_path, leaf_dirname, self.DIR_IMAGES, "*"))
         img_list = list(filter(lambda x: x.endswith(avail_ext), img_list))
 
-        # check for classes that have less than lower_bound images and remove them from the list
+        # since you filtered the dataframe to have a lower bound of images per class, you might have images that exceed
         if len(self.df_meta_album[self.COL_FILENAME]) < len(img_list):
             img_names_set = set([os.path.basename(img) for img in img_list])
             df_filename_set = set(self.df_meta_album[self.COL_FILENAME].values)
@@ -118,12 +118,12 @@ class MetaAlbum(FewShotDataset):
 
         df: pd.DataFrame = self.df_meta_album.copy()
 
-        # order classes as image_list, not dataframe
+        # ensure to pick the correct label according to the image name
         img_names = list(map(lambda x: os.path.basename(x), self.image_list))
         df.set_index(self.COL_FILENAME, inplace=True)
         ordered_classes = [df.loc[image_name, self.COL_CATEGORY] for image_name in img_names]
 
-        # ERROR MANAGER: there are wrong type values in the COL_CATEGORY as some are seen as pd.Series
+        # ERROR MANAGER: there are wrong type values in the COL_CATEGORY as some are seen as pd.Series (Extended)
         if any(type(oc) is pd.Series for oc in ordered_classes):
             Logger.instance().warning(f"Dataset {self.did} has wrong values for the category column (pd.Series)")
             for i, _ in enumerate(ordered_classes):
@@ -194,6 +194,9 @@ class MetaAlbum(FewShotDataset):
         return len(self.df_meta_album)
 
     def _check_meta_album_fsl(self) -> pd.DataFrame:
+        # ERROR MANAGER: there might be .DS_Store counted as an image!
+        self.df_meta_album = self.df_meta_album[self.df_meta_album[self.COL_FILENAME] != '.DS_Store']
+
         # count elements per class and remove those below lower bound
         class_counts = self.df_meta_album.groupby(self.COL_CATEGORY)[self.COL_FILENAME].count()
         filt_classes = class_counts[class_counts < self.LOWER_BOUND].index.tolist()

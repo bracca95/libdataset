@@ -5,6 +5,8 @@ import pandas as pd
 from glob import glob
 from typing import Optional, List, Set, Tuple
 
+from lib.libdataset.src.datasets.dataset import DatasetLauncher
+
 from .dataset_cls import DatasetCls
 from ...utils.config_parser import DatasetConfig
 from ...utils.tools import Logger, Tools
@@ -28,8 +30,6 @@ class MetaAlbumCls(DatasetCls):
     # dataframe info
     COL_FILENAME = "FILE_NAME"
     COL_CATEGORY = "CATEGORY"
-
-    LOWER_BOUND = 10
 
     DOMAINS = {
         44241: 0, 44313: 0, 44275: 0,
@@ -89,6 +89,9 @@ class MetaAlbumCls(DatasetCls):
             img_folder = Tools.validate_path(os.path.join(self.curr_dataset_path, img_folder_name))
             self.df_meta_album = pd.read_csv(os.path.join(img_folder, "labels.csv"))
 
+        # ERROR MANAGER: there might be .DS_Store counted as an image!
+        self.df_meta_album = self.df_meta_album[self.df_meta_album[self.COL_FILENAME] != '.DS_Store']
+
         super().__init__(dataset_config)
 
     def get_image_list(self, filt: Optional[List[str]]) -> List[str]:
@@ -98,17 +101,7 @@ class MetaAlbumCls(DatasetCls):
         img_list = glob(os.path.join(self.curr_dataset_path, leaf_dirname, self.DIR_IMAGES, "*"))
         img_list = list(filter(lambda x: x.endswith(avail_ext), img_list))
 
-        # check for classes that have less than lower_bound images and remove them from the list
-        if len(self.df_meta_album[self.COL_FILENAME]) < len(img_list):
-            img_names_set = set([os.path.basename(img) for img in img_list])
-            df_filename_set = set(self.df_meta_album[self.COL_FILENAME].values)
-            missing = img_names_set - df_filename_set
-
-            for i, img in enumerate(img_list):
-                if os.path.basename(img) in missing:
-                    img_list.pop(i)
-
-        return img_list
+        return sorted(img_list)
 
     def get_label_list(self) -> List[int]:
         if self.image_list is None:
@@ -116,12 +109,12 @@ class MetaAlbumCls(DatasetCls):
 
         df: pd.DataFrame = self.df_meta_album.copy()
 
-        # order classes as image_list, not dataframe
+        # ensure to pick the correct label according to the image name
         img_names = list(map(lambda x: os.path.basename(x), self.image_list))
         df.set_index(self.COL_FILENAME, inplace=True)
         ordered_classes = [df.loc[image_name, self.COL_CATEGORY] for image_name in img_names]
 
-        # ERROR MANAGER: there are wrong type values in the COL_CATEGORY as some are seen as pd.Series
+        # ERROR MANAGER: there are wrong type values in the COL_CATEGORY as some are seen as pd.Series (Extended)
         if any(type(oc) is pd.Series for oc in ordered_classes):
             Logger.instance().warning(f"Dataset {self.did} has wrong values for the category column (pd.Series)")
             for i, _ in enumerate(ordered_classes):
@@ -129,8 +122,33 @@ class MetaAlbumCls(DatasetCls):
                     ordered_classes[i] = list(ordered_classes[i])[0]
 
         # label to idx and vice versa to be compliant to FewShotDataset
-        self.label_to_idx = { val: i for i, val in enumerate(set(ordered_classes)) }
+        self.label_to_idx = { val: i for i, val in enumerate(sorted(set(ordered_classes))) }
         self.idx_to_label = Tools.invert_dict(self.label_to_idx)
 
         # use mapping to return an int for the corresponding str label
         return [self.label_to_idx[c] for c in ordered_classes]
+    
+    def split_dataset(self, save_path: str="") -> Tuple[DatasetLauncher, Optional[DatasetLauncher], DatasetLauncher]:
+        path = os.path.join(os.path.abspath(__file__).rsplit("src", 1)[0], "splits", "meta_album_cls", str(self.did))
+        
+        # if the split does not already exist, create them by calling the base method
+        try:
+            path = Tools.validate_path(path)
+        except FileNotFoundError as fnf:
+            os.makedirs(path, exist_ok=True)
+            Logger.instance().warning(f"{fnf} Going random split for {str(self.did)}. Saving at {path}")
+            return super().split_dataset(save_path=path)
+
+        # if the split has already been defined, read it
+        df_train = pd.read_csv(os.path.join(path, "train.csv"))
+        df_val = pd.read_csv(os.path.join(path, "val.csv"))
+        df_test = pd.read_csv(os.path.join(path, "test.csv"))
+
+        return self.get_launchers(
+            list(map(lambda x: os.path.join(self.dataset_config.dataset_path, x), df_train["images"].values.tolist())),
+            df_train["labels"].values.tolist(),
+            list(map(lambda x: os.path.join(self.dataset_config.dataset_path, x), df_val["images"].values.tolist())),
+            df_val["labels"].values.tolist(),
+            list(map(lambda x: os.path.join(self.dataset_config.dataset_path, x), df_test["images"].values.tolist())),
+            df_test["labels"].values.tolist()
+        )
