@@ -5,7 +5,7 @@ import json
 import time
 import logging
 
-from typing import Type, Any, Union, Optional, List
+from typing import Type, Any, Union, Optional, List, Set
 
 from ...config.consts import T
 
@@ -62,6 +62,12 @@ class Tools:
     @staticmethod
     def str2lst(s: str) -> List[Any]:
         return re.findall(r"[\w']+", s)
+
+    @staticmethod
+    def add_elems_to_set(in_set: Set[Any], *args) -> None:
+        # in place operation
+        for elem in args:
+            in_set.add(elem)
 
     @staticmethod
     def check_string(s: str, options: List[str], case_sensitive: bool, exact_match: bool) -> bool:

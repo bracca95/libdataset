@@ -16,6 +16,7 @@ from .fsl.aircraft import Aircraft
 from .fsl.meta_inat import Metainat
 from .fsl.meta_test import CropDiseases, EuroSat, Isic
 from .fsl.meta_album import MetaAlbum
+from .fsl.full_meta_album import FullMetaAlbum
 from .fsl.wikiart import WikiArtArtist, WikiArtGenre, WikiArtStyle
 from .torch.celeba import CelebaWrapper
 from .classification.meta_album_csl import MetaAlbumCls
@@ -69,6 +70,9 @@ class DatasetBuilder:
         elif dataset_config.dataset_type == "meta_album":
             Logger.instance().debug("Loading dataset MetaAlbum (type FewShotDataset)")
             return MetaAlbum(dataset_config)
+        elif dataset_config.dataset_type == "full_meta_album":
+            Logger.instance().debug("Loading dataset FullMetaAlbum (type FullMetalJacket)")
+            return FullMetaAlbum(dataset_config)
         elif dataset_config.dataset_type == "dtd":
             Logger.instance().debug("Loading dataset Dtd (type FewShotDataset)")
             return Dtd(dataset_config)
