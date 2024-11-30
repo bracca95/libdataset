@@ -32,15 +32,20 @@ class FullMetaAlbum(FewShotDataset):
     
     def get_label_list(self) -> List[int]:
         duplicate_labels: Set[str] = set()
-        label_list = []
+        label_list: List[str] = []
+        
         for album in self.album_list:
-            curr_label_list = list(album.label_to_idx.keys())
-            Tools.add_elems_to_set(duplicate_labels, *list(set(curr_label_list) & set(label_list)))
-            label_list.extend(curr_label_list)
+            # find duplicates (debugging and info purposes)
+            curr_unique_labels = list(album.label_to_idx.keys())
+            Tools.add_elems_to_set(duplicate_labels, *list(set(curr_unique_labels) & set(label_list)))
+            
+            # add all the labels
+            curr_label_name = [album.idx_to_label[c] for c in album.label_list]
+            label_list.extend(curr_label_name)
         
         if len(duplicate_labels) > 0:
             msg = f"{len(duplicate_labels)} duplicate labels among albums: {duplicate_labels}.\n" + \
-                  f"Total labels are {len(set(label_list))} instead of {len(label_list)}"
+                  f"Total labels are {len(set(label_list))} instead of {len(set(label_list)) + len(duplicate_labels)}"
             Logger.instance().warning(msg)
         
         self.label_to_idx = { val: i for i, val in enumerate(set(label_list)) }
