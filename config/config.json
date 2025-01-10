@@ -1,11 +1,11 @@
 {
     "dataset_path": "/media/lollo/D/datasets/fashion_mnist",
-    "dataset_type": "fashion_mnist",
+    "dataset_type": "meta_fashion_mnist",
     "dataset_id": null,
     "dataset_splits": [
-        0.64,
-        0.16,
-        0.20
+        1.0,
+        0.0,
+        0.0
     ],
     "normalize": false,
     "crop_size": 224,

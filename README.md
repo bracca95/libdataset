@@ -8,7 +8,7 @@ Edit the `config/config.json` file to start
 
 ```
 "dataset_path": string,
-"dataset_type": {`omniglot`, `episodic_imagenet`, `episodic_imagenet1k`, `episodic_coco`, `miniimagenet`, `cub`, `fungi`, `aircraft`, `meta_inat`, `meta_album`, `cropdiseases`, `eurosat`, `isic`, `dtd`, `cifar_fs`, `celeba`, `wikiart` {_artist, _genre, _style}, `pacs` {_object, _domain}, `meta_album_cls`, `mnist`, `fashion_mnist` for dataset_type. `episodic_imagenet` can also be run with other evaluation datasets: append (_val_cifar, _val_cub, val_aircraft)},
+"dataset_type": {`omniglot`, `episodic_imagenet`, `episodic_imagenet1k`, `episodic_coco`, `miniimagenet`, `cub`, `fungi`, `aircraft`, `meta_inat`, `meta_album`, `cropdiseases`, `eurosat`, `isic`, `dtd`, `cifar_fs`, `celeba`, `wikiart` {_artist, _genre, _style}, `pacs` {_object, _domain}, `meta_album_cls`, `mnist`, `fashion_mnist`, `meta_mnist`, `meta_fashion_mnist` for dataset_type. `episodic_imagenet` can also be run with other evaluation datasets: append (_val_cifar, _val_cub, val_aircraft)},
 "dataset_id": Optional[List[int]] (param for MetaAlbum datasets only)
 "dataset_splits": List[float] (1 for train/test (e.g. [0.8]), 3 for train/val/test),
 "normalize": bool,

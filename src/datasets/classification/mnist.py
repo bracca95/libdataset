@@ -4,12 +4,11 @@ from glob import glob
 from copy import deepcopy
 from typing import List, Optional, Tuple
 
-
 from .dataset_cls import DatasetCls
-from ..dataset import DatasetWrapper, DatasetLauncher
+from ..dataset import DatasetLauncher
 from ...utils.downloader import Download
 from ...utils.config_parser import DatasetConfig
-from ...utils.tools import Logger, Tools
+from ...utils.tools import Logger
 
 
 class Mnist(DatasetCls):
@@ -17,6 +16,7 @@ class Mnist(DatasetCls):
     SUBDIRS = ["MNIST", "raw"]
     TRAIN_CLASSES = 10
     TRAIN_IMAGES = 60000
+    TEST_IMAGES = 10000
 
     def __init__(self, dataset_config: DatasetConfig):
         Download.download_mnist(root=dataset_config.dataset_path, subdirs=self.SUBDIRS, version=self.SUBDIRS[0])
