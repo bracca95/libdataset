@@ -5,9 +5,8 @@ import pandas as pd
 from glob import glob
 from typing import Optional, List, Set, Tuple
 
-from lib.libdataset.src.datasets.dataset import DatasetLauncher
-
 from .dataset_cls import DatasetCls
+from ...datasets.dataset import DatasetLauncher
 from ...utils.config_parser import DatasetConfig
 from ...utils.tools import Logger, Tools
 from ....config.consts import General as _CG

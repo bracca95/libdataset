@@ -42,7 +42,7 @@ class DatasetCls(DatasetWrapper):
     
     def get_label_list(self) -> List[int]:
         if not self.image_list:
-            self.image_list = self.get_image_list()
+            self.image_list = self.get_image_list(None)
         
         label_list = [os.path.basename(os.path.dirname(img_path)) for img_path in self.image_list]
         label_set = list(dict.fromkeys(label_list))     # not a set, but preserves the order
@@ -53,7 +53,12 @@ class DatasetCls(DatasetWrapper):
     
     def load_image(self, path: str, augment: Optional[List[str]]) -> torch.Tensor:
         repeat: int = self.dataset_config.augment_times      # type: ignore .non-null checked in config parser
-        img_pil = Image.open(path).convert("RGB")
+        
+        conversion = "RGB"
+        if self.dataset_config.dataset_mean is not None and len(self.dataset_config.dataset_mean) == 1:
+            conversion = "L"
+        
+        img_pil = Image.open(path).convert(conversion)
 
         # basic operations: always performed
         basic_transf = transforms.Compose([
