@@ -35,6 +35,11 @@ class Download:
         # choose dataset
         dataset = torch_MNIST if version == "MNIST" else torch_FashionMNIST
         
+        # the meta test split is not specified in config, so the directory might not be created
+        if not os.path.exists(root):
+            Logger.instance().warning(f"Creating {root}, if you plan to use {version} as test set (meta), it's ok.")
+            os.makedirs(root)
+
         # download from torchvision
         Logger.instance().debug(f"Downloading {version}")
         train_dataset = dataset(root=root, train=True, transform=transforms.ToTensor(), download=True)

@@ -74,10 +74,17 @@ class DatasetConfig:
             Tools.check_instance(obj, dict)
             dataset_path = Tools.validate_path(obj.get(_CD.CONFIG_DATASET_PATH))
         except (FileNotFoundError, ValueError) as fnf:
-            Logger.instance().error(fnf.args)
-            dataset_path = input("insert dataset path: ")
-            while not os.path.exists(dataset_path):
+            dirname = os.path.dirname(obj.get(_CD.CONFIG_DATASET_PATH))
+            dataset_name = os.path.basename(obj.get(_CD.CONFIG_DATASET_PATH))
+            if os.path.exists(dirname) and dataset_name in ("FashionMNIST", "MNIST", "omniglot"):
+                Logger.instance().warning(f"Is this the first time that you download the dataset in this root?")
+                os.makedirs(obj.get(_CD.CONFIG_DATASET_PATH))
+                dataset_path = Tools.validate_path(obj.get(_CD.CONFIG_DATASET_PATH))
+            else:
+                Logger.instance().error(fnf.args)
                 dataset_path = input("insert dataset path: ")
+                while not os.path.exists(dataset_path):
+                    dataset_path = input("insert dataset path: ")
                 
         try:
             dataset_type = from_str(obj.get(_CD.CONFIG_DATASET_TYPE))
