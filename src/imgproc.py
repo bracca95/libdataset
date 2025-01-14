@@ -21,6 +21,23 @@ class ConditionalRandomCrop:
             return img
 
 
+class RandomProjection:
+    """Random Projection
+
+    Init a matrix that performs any random projection, than flatten the image that you want to augment so that
+    $\\mathbb{R}^{N_x \\times N_x} \\cdot \\mathbb{R}^{N_x}$ and finally reshape back to the original image size.
+    """
+    
+    def __init__(self, matrix):
+        self.matrix = matrix
+        
+    def __call__(self, x):
+        x_flat = x.view(-1)
+        x_augment = self.matrix @ x_flat
+        x_back = x_augment.reshape(x.size(1), x.size(2))    # 0 is the batch size
+        return x_back
+
+
 class Processing:
 
     offline_transforms = transforms.RandomOrder([

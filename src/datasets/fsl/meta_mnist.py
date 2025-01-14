@@ -9,6 +9,7 @@ from torchvision.transforms import transforms
 
 from .dataset_fsl import FewShotDataset
 from ..dataset import DatasetLauncher
+from ...imgproc import RandomProjection
 from ...utils.tools import Logger, Tools
 from ...utils.downloader import Download
 from ...utils.config_parser import DatasetConfig
@@ -29,9 +30,9 @@ class Mnist2Fashion(FewShotDataset):
     TEST_IMAGES = 10000         # FashionMNIST's test split
 
     def __init__(self, dataset_config: DatasetConfig):
-        test_path = os.path.join(os.path.dirname(dataset_config.dataset_path), self.SUBDIRS_TEST[0])
+        self.test_path = os.path.join(os.path.dirname(dataset_config.dataset_path), self.SUBDIRS_TEST[0])
         Download.download_mnist(dataset_config.dataset_path, self.SUBDIRS_TRAIN, version=self.SUBDIRS_TRAIN[0])
-        Download.download_mnist(test_path, self.SUBDIRS_TEST, version=self.SUBDIRS_TEST[0])
+        Download.download_mnist(self.test_path, self.SUBDIRS_TEST, version=self.SUBDIRS_TEST[0])
         super().__init__(dataset_config)
 
     def get_image_list(self, filt: Optional[List[str]]) -> List[str]:
@@ -39,7 +40,7 @@ class Mnist2Fashion(FewShotDataset):
         
         train_images = glob(os.path.join(self.dataset_config.dataset_path, *self.SUBDIRS_TRAIN, "train", "*", "*"))
         train_images = list(filter(lambda x: x.endswith(avail_ext), train_images))
-        test_images = glob(os.path.join(self.dataset_config.dataset_path, *self.SUBDIRS_TEST, "test", "*", "*"))
+        test_images = glob(os.path.join(self.test_path, *self.SUBDIRS_TEST, "test", "*", "*"))
         test_images = list(filter(lambda x: x.endswith(avail_ext), test_images))
         
         return train_images + test_images
@@ -73,15 +74,24 @@ class Mnist2Fashion(FewShotDataset):
             conversion = "L"
         
         img_pil = Image.open(path).convert(conversion)
+        img_size = self.dataset_config.image_size
 
         # basic operations: always performed
         basic_transf = transforms.Compose([
-            transforms.Resize((self.dataset_config.image_size, self.dataset_config.image_size)),
+            transforms.Resize((img_size, img_size)),
             transforms.ToTensor(),
             DatasetLauncher.normalize_or_identity(self.dataset_config)
         ])
 
-        return basic_transf(img_pil)
+        img_pil = basic_transf(img_pil)
+
+        # if augmentation required
+        if augment is not None and "projection" in augment:
+            aug_matrix = torch.randn(img_size**2, img_size**2) * (1 / img_size)**0.5     # same as GPICL
+            augment_function = transforms.Compose([RandomProjection(aug_matrix)])
+            img_pil = augment_function(img_pil)
+
+        return img_pil
     
     def split_method(self) -> Tuple[Set[str], Set[str], Set[str]]:
         # the split is fixed: MNIST to train, FashionMNIST (test split) to test
