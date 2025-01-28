@@ -84,13 +84,6 @@ class Mnist2Fashion(FewShotDataset):
         ])
 
         img_pil = basic_transf(img_pil)
-
-        # if augmentation required
-        if augment is not None and "projection" in augment:
-            aug_matrix = torch.randn(img_size**2, img_size**2) * (1 / img_size)**0.5     # same as GPICL
-            augment_function = transforms.Compose([RandomProjection(aug_matrix)])
-            img_pil = augment_function(img_pil)
-
         return img_pil
     
     def split_method(self) -> Tuple[Set[str], Set[str], Set[str]]:

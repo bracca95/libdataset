@@ -32,9 +32,15 @@ class RandomProjection:
         self.matrix = matrix
         
     def __call__(self, x):
-        x_flat = x.view(-1)
-        x_augment = self.matrix @ x_flat
-        x_back = x_augment.reshape(x.size(1), x.size(2))    # 0 is the batch size
+        bs, chans, h, w = x.size()
+        
+        if not h * w == self.matrix.size(0):
+            raise ValueError(f"Projection matrix size {self.matrix.shape} must match flattened image size {h * w}.")
+    
+        x_flat = x.view(bs, chans, -1)
+        x_augment = torch.matmul(x_flat, self.matrix.T)
+        x_back = x_augment.view(bs, chans, h, w)
+        
         return x_back
 
 
