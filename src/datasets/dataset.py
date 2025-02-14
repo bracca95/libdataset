@@ -2,11 +2,14 @@ import os
 import torch
 
 from abc import ABC, abstractmethod
+from torch import Tensor
 from typing import Tuple, List, Callable, Optional
+from PIL.Image import Image as PilImgType
 from torchvision import transforms
 from torchvision.utils import make_grid
 from torch.utils.data import Dataset, DataLoader
 
+from ..imgproc import Processing
 from ..utils.tools import Logger
 from ..utils.config_parser import DatasetConfig
 
@@ -43,6 +46,35 @@ class DatasetWrapper(ABC):
     @abstractmethod
     def val_dataset(self) -> Optional[Dataset]:
         ...
+
+    @staticmethod
+    def sample_augment(x: PilImgType, dataset_config: DatasetConfig, strong: bool) -> Tensor:
+        img_size = dataset_config.image_size
+        
+        # define transformations that can fit both RGB and L images
+        transform_list = [
+            transforms.RandomResizedCrop(img_size, scale=(0.2, 0.8)), # ConditionalRandomCrop(64)
+            Processing.rotate_lambda(deg=60, p=1.0),
+            transforms.RandomHorizontalFlip(p=1.0),
+            transforms.GaussianBlur(3),
+            transforms.RandomAffine(degrees=0, shear=[-45, 45, -45, 45])
+        ]
+
+        # transformations for RGB images only
+        transform_rgb_list = [
+            transforms.Grayscale(num_output_channels=3),
+            transforms.ColorJitter(0.2, 0.2, 0.2, 0.1),
+        ]
+
+        # add RGB transformations when the image has 3 channels
+        if x.mode == "RGB":
+            transform_list.extend(transform_rgb_list)
+
+        # select 3 augmentations if strong, 1 if not
+        n = 3 if strong else 1
+        random_transforms = transforms.Compose([transforms.RandomChoice(transform_list) for _ in range(n)])
+        
+        return random_transforms(x)
 
 
 class DatasetLauncher(Dataset):

@@ -132,15 +132,24 @@ class FewShotDataset(DatasetWrapper):
     def ssl_augment_basic(x: PilImgType, dataset_config: DatasetConfig, n: int, strong: bool) -> List[Tensor]:
         img_size = dataset_config.image_size
         
+        # define transformations that can fit both RGB and L images
         transform_list = [
             transforms.RandomResizedCrop(img_size, scale=(0.2, 0.8)), # ConditionalRandomCrop(64)
             Processing.rotate_lambda(deg=60, p=1.0),
             transforms.RandomHorizontalFlip(p=1.0),
-            transforms.Grayscale(num_output_channels=3),
-            transforms.ColorJitter(0.2, 0.2, 0.2, 0.1),
             transforms.GaussianBlur(3),
             transforms.RandomAffine(degrees=0, shear=[-45, 45, -45, 45])
         ]
+
+        # transformations for RGB images only
+        transform_list_rgb = [
+            transforms.Grayscale(num_output_channels=3),
+            transforms.ColorJitter(0.2, 0.2, 0.2, 0.1),
+        ]
+
+        # add RGB transformations when the image has 3 channels
+        if x.mode == "RGB":
+            transform_list.extend(transform_list_rgb)
 
         if strong:
             # select three augmentations for each image (one strong augmented version is returned)

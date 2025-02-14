@@ -66,7 +66,23 @@ class OmniglotWrapper(FewShotDataset):
         if self.dataset_config.dataset_mean is not None and len(self.dataset_config.dataset_mean) == 3:
             return super().load_image(path, augment)
         
-        img_pil = Image.open(path).convert("L")
+        conversion = "RGB"
+        if self.dataset_config.dataset_mean is not None and len(self.dataset_config.dataset_mean) == 1:
+            conversion = "L"
+        
+        img_pil = Image.open(path).convert(conversion)
+
+        if augment is not None:
+            if "support" in augment or "query" in augment:
+                msg = f"FSL support/query not implemented for Omniglot"
+                Logger.instance().error(msg)
+                raise NotImplementedError(msg)
+            elif "sample_strong" in augment:
+                img_pil = self.sample_augment(img_pil, self.dataset_config, strong=True)
+            elif "sample_weak" in augment:
+                img_pil = self.sample_augment(img_pil, self.dataset_config, strong=False)
+            else:
+                pass
             
         # basic operations
         basic_transf = transforms.Compose([

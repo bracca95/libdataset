@@ -76,6 +76,18 @@ class Mnist2Fashion(FewShotDataset):
         img_pil = Image.open(path).convert(conversion)
         img_size = self.dataset_config.image_size
 
+        if augment is not None:
+            if "support" in augment or "query" in augment:
+                msg = f"FSL support/query not implemented for Omniglot"
+                Logger.instance().error(msg)
+                raise NotImplementedError(msg)
+            elif "sample_strong" in augment:
+                img_pil = self.sample_augment(img_pil, self.dataset_config, strong=True)
+            elif "sample_weak" in augment:
+                img_pil = self.sample_augment(img_pil, self.dataset_config, strong=False)
+            else:
+                pass
+
         # basic operations: always performed
         basic_transf = transforms.Compose([
             transforms.Resize((img_size, img_size)),
