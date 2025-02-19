@@ -4,8 +4,10 @@ import torch
 from PIL import Image
 from PIL.Image import Image as PilImgType
 from tqdm import tqdm
-from typing import Optional, List, Callable
+from torch import Tensor
+from typing import Optional, List, Callable, Tuple
 from torchvision.transforms import transforms
+from torchvision.transforms import functional as func_t
 
 from .utils.tools import Logger
 
@@ -59,6 +61,33 @@ class Processing:
     ])
 
     @staticmethod
+    def sample_augment(x: PilImgType, img_size: int, strong: bool) -> Tensor:
+        # define transformations that can fit both RGB and L images
+        transform_list = [
+            transforms.RandomResizedCrop(img_size, scale=(0.2, 0.8)), # ConditionalRandomCrop(64)
+            Processing.rotate_lambda(deg=60, p=1.0),
+            transforms.RandomHorizontalFlip(p=1.0),
+            transforms.GaussianBlur(3),
+            transforms.RandomAffine(degrees=0, shear=[-45, 45, -45, 45])
+        ]
+
+        # transformations for RGB images only
+        transform_rgb_list = [
+            transforms.Grayscale(num_output_channels=3),
+            transforms.ColorJitter(0.2, 0.2, 0.2, 0.1),
+        ]
+
+        # add RGB transformations when the image has 3 channels
+        if x.mode == "RGB":
+            transform_list.extend(transform_rgb_list)
+
+        # select 3 augmentations if strong, 1 if not
+        n = 3 if strong else 1
+        random_transforms = transforms.Compose([transforms.RandomChoice(transform_list) for _ in range(n)])
+        
+        return random_transforms(x)
+
+    @staticmethod
     def crop_no_padding(img: PilImgType, crop_size: int, path: Optional[str]=None) -> PilImgType:
         """Crop ensuring that the output image is not padded
 
@@ -93,22 +122,64 @@ class Processing:
         return img
 
     @staticmethod
-    def rotate_image(img: PilImgType, prob: float) -> PilImgType:
-        """Rotate a PIL Image with multiples of 90 degrees with a given probability.
+    def rotate_image(img: PilImgType, angle: int, zero_deg: bool, prob: float=1.0) -> Tuple[PilImgType, int]:
+        """Rotate a PIL Image with multiples of 'angle' degrees with a given probability.
 
         Args:
             img (Image): A PIL Image of shape (C, H, W).
-            prob (float): A float value between 0.0 and 1.0 representing the probability of rotation.
+            angle (int): rotate by (multiplier of) an angle: must be divider of 360
+            zero_deg (bool): include zero degree rotation (no rotation)
+            prob (float=1.0): A float value between 0.0 and 1.0 representing the probability of rotation.
 
         Returns:
-            The same Image rotated by 0, 90, 180 or 270 degrees.
+            The same Image rotated by angle * n_rot (ranomly sampled)
+
+        Raises:
+            ValueError if the angle is not a divider of 360
         """
 
+        if not 360 % angle == 0:
+            raise ValueError(f"'angle' must be divider of 360 ({angle})")
+
+        divider = 360 // angle
+        start = 0 if zero_deg else 1
+
+        n_rot = 0
         if torch.rand(1) < prob:
-            n_rot = torch.randint(1, 4, (1,)).item()  # random integer between 1 and 3
-            img = img.rotate(90 * n_rot, expand=True)
+            n_rot = int(torch.randint(start, divider, (1,)).item())
+            img = img.rotate(angle * n_rot, expand=True)
         
-        return img
+        return img, n_rot
+    
+    @staticmethod
+    def rotate_tensor(x: Tensor, angle: int, zero_deg: bool, prob: float=1.0) -> Tuple[Tensor, int]:
+        """Rotate a Tensor (batch) with multiples of 'angle' degrees with a given probability.
+
+        Args:
+            x (Tensor): A Tensor of shape (N, C, H, W).
+            angle (int): rotate by (multiplier of) an angle: must be divider of 360
+            zero_deg (bool): include zero degree rotation (no rotation)
+            prob (float=1.0): A float value between 0.0 and 1.0 representing the probability of rotation.
+
+        Returns:
+            The same Tensor rotated by angle * n_rot (ranomly sampled)
+
+        Raises:
+            ValueError if the angle is not a divider of 360
+        """
+
+        if not 360 % angle == 0:
+            raise ValueError(f"'angle' must be divider of 360 ({angle})")
+
+        divider = 360 // angle
+        start = 0 if zero_deg else 1
+
+        n_rot = 0
+        if torch.rand(1) < prob:
+            n_rot = int(torch.randint(start, divider, (1,)).item())
+            x = func_t.rotate(x, angle=90 * n_rot)
+        
+        return x, n_rot
     
     @staticmethod
     def rotate_lambda(deg: int, p: float=0.5) -> torch.nn.Module:
@@ -132,7 +203,7 @@ class Processing:
             img_filename, img_ext = os.path.basename(img_path).rsplit(".")
 
             # remove the following line when random rotation is used instead
-            img_pil = Processing.rotate_image(img_pil, prob=0.5)
+            img_pil, _ = Processing.rotate_image(img_pil, angle=90, zero_deg=False, prob=0.5)
             for it in range(iters):
                 img_aug = aug_fun(img_pil)
                 new_filename = f"{img_filename}_{it}.{img_ext}"

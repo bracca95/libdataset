@@ -23,3 +23,9 @@ Edit the `config/config.json` file to start
 
 If `dataset_mean` and `dataset_std` are set to null, the program will compute them and then it will quit the execution.
 Run the program again to train your model.
+
+## Online Augmentations
+Configuring augmentations (`augment_online`) might be tricky:
+* meta-datasets make use of "support" + "query", but can use "strong" as well.
+* classification datasets use typical sample augmentations: "sample_weak", "sample_strong", "sample_rot_45", "sample_rot_90".
+* meta-mnist and omniglot are exceptions: they use classification augmentations even if they are meta-datasets.

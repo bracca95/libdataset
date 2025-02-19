@@ -9,7 +9,7 @@ from torchvision.transforms import transforms
 
 from .dataset_fsl import FewShotDataset
 from ..dataset import DatasetLauncher
-from ...imgproc import RandomProjection
+from ...imgproc import Processing
 from ...utils.tools import Logger, Tools
 from ...utils.downloader import Download
 from ...utils.config_parser import DatasetConfig
@@ -82,9 +82,13 @@ class Mnist2Fashion(FewShotDataset):
                 Logger.instance().error(msg)
                 raise NotImplementedError(msg)
             elif "sample_strong" in augment:
-                img_pil = self.sample_augment(img_pil, self.dataset_config, strong=True)
+                img_pil = Processing.sample_augment(img_pil, self.dataset_config.image_size, strong=True)
             elif "sample_weak" in augment:
-                img_pil = self.sample_augment(img_pil, self.dataset_config, strong=False)
+                img_pil = Processing.sample_augment(img_pil, self.dataset_config.image_size, strong=False)
+            elif "sample_rot_45" in augment:
+                img_pil, _ = Processing.rotate_image(img_pil, 45, zero_deg=True)
+            elif "sample_rot_90" in augment:
+                img_pil, _ = Processing.rotate_image(img_pil, 90, zero_deg=True)
             else:
                 pass
 

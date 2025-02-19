@@ -1,15 +1,10 @@
 import os
-import torch
-
-from PIL import Image
 from glob import glob
 from copy import deepcopy
-from torchvision.transforms import transforms
 from typing import List, Optional, Tuple
 
 from .dataset_cls import DatasetCls
 from ..dataset import DatasetLauncher
-from ...imgproc import RandomProjection
 from ...utils.downloader import Download
 from ...utils.config_parser import DatasetConfig
 from ...utils.tools import Logger
@@ -38,34 +33,6 @@ class Mnist(DatasetCls):
         test_images = list(filter(lambda x: x.endswith(avail_ext), test_images))
         
         return train_images + test_images
-
-    def load_image(self, path: str, augment: Optional[List[str]]) -> torch.Tensor:
-        repeat: int = self.dataset_config.augment_times      # type: ignore .non-null checked in config parser
-        
-        conversion = "RGB"
-        if self.dataset_config.dataset_mean is not None and len(self.dataset_config.dataset_mean) == 1:
-            conversion = "L"
-        
-        img_pil = Image.open(path).convert(conversion)
-        img_size = self.dataset_config.image_size
-
-        if augment is not None:
-            if "sample_strong" in augment:
-                img_pil = self.sample_augment(img_pil, self.dataset_config, strong=True)
-            elif "sample_weak" in augment:
-                img_pil = self.sample_augment(img_pil, self.dataset_config, strong=False)
-            else:
-                pass
-
-        # basic operations: always performed
-        basic_transf = transforms.Compose([
-            transforms.Resize((img_size, img_size)),
-            transforms.ToTensor(),
-            DatasetLauncher.normalize_or_identity(self.dataset_config)
-        ])
-
-        img_pil = basic_transf(img_pil)
-        return img_pil
 
     def split_dataset(self, save_path: str) -> Tuple[DatasetLauncher, Optional[DatasetLauncher], DatasetLauncher]:
         train_images = self.image_list[:self.TRAIN_IMAGES]

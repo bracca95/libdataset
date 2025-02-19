@@ -9,6 +9,7 @@ from torch.utils.data import Dataset
 from torchvision.transforms import transforms
 
 from ..dataset import DatasetWrapper, DatasetLauncher
+from ...imgproc import Processing
 from ...utils.tools import Logger, Tools
 from ...utils.config_parser import DatasetConfig
 from ....config.consts import General as _CG
@@ -59,15 +60,29 @@ class DatasetCls(DatasetWrapper):
             conversion = "L"
         
         img_pil = Image.open(path).convert(conversion)
+        img_size = self.dataset_config.image_size
+
+        if augment is not None:
+            if "sample_strong" in augment:
+                img_pil = Processing.sample_augment(img_pil, self.dataset_config.image_size, strong=True)
+            elif "sample_weak" in augment:
+                img_pil = Processing.sample_augment(img_pil, self.dataset_config.image_size, strong=False)
+            elif "sample_rot_45" in augment:
+                img_pil, _ = Processing.rotate_image(img_pil, 45, zero_deg=True)
+            elif "sample_rot_90" in augment:
+                img_pil, _ = Processing.rotate_image(img_pil, 90, zero_deg=True)
+            else:
+                pass
 
         # basic operations: always performed
         basic_transf = transforms.Compose([
-            transforms.Resize((self.dataset_config.image_size, self.dataset_config.image_size)),
+            transforms.Resize((img_size, img_size)),
             transforms.ToTensor(),
             DatasetLauncher.normalize_or_identity(self.dataset_config)
         ])
 
-        return basic_transf(img_pil)
+        img_pil = basic_transf(img_pil)
+        return img_pil
 
     def split_dataset(self, save_path: str) -> Tuple[DatasetLauncher, Optional[DatasetLauncher], DatasetLauncher]:
         """Random split

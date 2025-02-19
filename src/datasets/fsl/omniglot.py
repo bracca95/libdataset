@@ -4,12 +4,12 @@ import torch
 from PIL import Image
 from glob import glob
 from typing import List, Tuple, Set, Optional
-from torch.utils.data import DataLoader, Dataset
 from torchvision.datasets import Omniglot
 from torchvision.transforms import transforms
 
 from .dataset_fsl import FewShotDataset
-from ..dataset import DatasetWrapper, DatasetLauncher
+from ..dataset import DatasetLauncher
+from ...imgproc import Processing
 from ...utils.tools import Tools, Logger
 from ...utils.config_parser import DatasetConfig
 from ....config.consts import General as _CG
@@ -78,9 +78,13 @@ class OmniglotWrapper(FewShotDataset):
                 Logger.instance().error(msg)
                 raise NotImplementedError(msg)
             elif "sample_strong" in augment:
-                img_pil = self.sample_augment(img_pil, self.dataset_config, strong=True)
+                img_pil = Processing.sample_augment(img_pil, self.dataset_config.image_size, strong=True)
             elif "sample_weak" in augment:
-                img_pil = self.sample_augment(img_pil, self.dataset_config, strong=False)
+                img_pil = Processing.sample_augment(img_pil, self.dataset_config.image_size, strong=False),
+            elif "sample_rot_45" in augment:
+                img_pil, _ = Processing.rotate_image(img_pil, 45, zero_deg=True)
+            elif "sample_rot_90" in augment:
+                img_pil, _ = Processing.rotate_image(img_pil, 90, zero_deg=True)
             else:
                 pass
             
@@ -91,7 +95,8 @@ class OmniglotWrapper(FewShotDataset):
             DatasetLauncher.normalize_or_identity(self.dataset_config)
         ])
 
-        return basic_transf(img_pil)
+        img_pil = basic_transf(img_pil)
+        return img_pil
 
     def expected_length(self) -> int:
         return (self.N_CLASSES_TRAIN + self.N_CLASSES_TEST) * self.N_IMG_PER_CLASS
