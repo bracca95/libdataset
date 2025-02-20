@@ -26,13 +26,14 @@ class DatasetCls(DatasetWrapper):
 
     SUBDIRS = []
 
-    def __init__(self, dataset_config: DatasetConfig):
+    def __init__(self, dataset_config: DatasetConfig, save_split: Optional[str]=None):
         super().__init__()
         self.dataset_config = dataset_config
+        self.save_split = str() if save_split is None else save_split
         
         self._image_list = self.get_image_list(None)
         self._label_list = self.get_label_list()
-        self._train_dataset, self._val_dataset, self._test_dataset = self.split_dataset("")
+        self._train_dataset, self._val_dataset, self._test_dataset = self.split_dataset(self.save_split)
 
     def get_image_list(self, filt: Optional[List[str]]) -> List[str]:
         avail_ext = ("jpeg", "jpg", "png", "JPG", "JPG", "JPEG")
@@ -123,6 +124,8 @@ class DatasetCls(DatasetWrapper):
         test_labels = label_shuffled[train_size + val_size:]
 
         # save dataframes
+        if not save_path == str():
+            os.makedirs(save_path, exist_ok=True)
         self.save_csv_split(train_images, train_labels, os.path.join(save_path, "train.csv"))
         self.save_csv_split(val_images, val_labels, os.path.join(save_path, "val.csv"))
         self.save_csv_split(test_images, test_labels, os.path.join(save_path, "test.csv"))

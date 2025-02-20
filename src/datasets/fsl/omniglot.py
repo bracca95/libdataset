@@ -82,9 +82,9 @@ class OmniglotWrapper(FewShotDataset):
             elif "sample_weak" in augment:
                 img_pil = Processing.sample_augment(img_pil, self.dataset_config.image_size, strong=False),
             elif "sample_rot_45" in augment:
-                img_pil, _ = Processing.rotate_image(img_pil, 45, zero_deg=True)
+                img_pil, _ = Processing.rotate_image(img_pil, 45, zero_deg=True, fill=[255])
             elif "sample_rot_90" in augment:
-                img_pil, _ = Processing.rotate_image(img_pil, 90, zero_deg=True)
+                img_pil, _ = Processing.rotate_image(img_pil, 90, zero_deg=True, fill=[255])
             else:
                 pass
             

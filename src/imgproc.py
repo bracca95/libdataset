@@ -122,7 +122,13 @@ class Processing:
         return img
 
     @staticmethod
-    def rotate_image(img: PilImgType, angle: int, zero_deg: bool, prob: float=1.0) -> Tuple[PilImgType, int]:
+    def rotate_image(
+        img: PilImgType,
+        angle: int,
+        zero_deg: bool,
+        prob: float=1.0,
+        fill: Optional[List[int]]=None
+    ) -> Tuple[PilImgType, int]:
         """Rotate a PIL Image with multiples of 'angle' degrees with a given probability.
 
         Args:
@@ -130,6 +136,7 @@ class Processing:
             angle (int): rotate by (multiplier of) an angle: must be divider of 360
             zero_deg (bool): include zero degree rotation (no rotation)
             prob (float=1.0): A float value between 0.0 and 1.0 representing the probability of rotation.
+            fill (Optional[List[int]]): fill color, default is black, can be RGB or gray. Range [0, 255]
 
         Returns:
             The same Image rotated by angle * n_rot (ranomly sampled)
@@ -143,16 +150,23 @@ class Processing:
 
         divider = 360 // angle
         start = 0 if zero_deg else 1
+        fillcolor = tuple(fill) if fill is not None else None
 
         n_rot = 0
         if torch.rand(1) < prob:
             n_rot = int(torch.randint(start, divider, (1,)).item())
-            img = img.rotate(angle * n_rot, expand=True)
+            img = img.rotate(angle * n_rot, expand=True, fillcolor=fillcolor)
         
         return img, n_rot
     
     @staticmethod
-    def rotate_tensor(x: Tensor, angle: int, zero_deg: bool, prob: float=1.0) -> Tuple[Tensor, int]:
+    def rotate_tensor(
+        x: Tensor,
+        angle: int,
+        zero_deg: bool,
+        prob: float=1.0,
+        fill: Optional[List[float]]=None
+    ) -> Tuple[Tensor, int]:
         """Rotate a Tensor (batch) with multiples of 'angle' degrees with a given probability.
 
         Args:
@@ -160,6 +174,7 @@ class Processing:
             angle (int): rotate by (multiplier of) an angle: must be divider of 360
             zero_deg (bool): include zero degree rotation (no rotation)
             prob (float=1.0): A float value between 0.0 and 1.0 representing the probability of rotation.
+            fill (Optional[List[float]]): fill color, default is black, can be RGB or gray. Range [0., 1.]
 
         Returns:
             The same Tensor rotated by angle * n_rot (ranomly sampled)
@@ -177,7 +192,7 @@ class Processing:
         n_rot = 0
         if torch.rand(1) < prob:
             n_rot = int(torch.randint(start, divider, (1,)).item())
-            x = func_t.rotate(x, angle=90 * n_rot)
+            x = func_t.rotate(x, angle=90 * n_rot, fill=fill)
         
         return x, n_rot
     
