@@ -82,6 +82,20 @@ class DatasetLauncher(Dataset):
         self.info_dict = info
 
     @staticmethod
+    def rgb_or_l(dataset_type: str, normalize: bool, dataset_mean: Optional[List[float]]) -> str:
+        conversion = "RGB"
+        
+        # pre-processing step: you want normalization but you do not know the values
+        if normalize is True and dataset_mean is None:
+            conversion = "L" if any(map(lambda x: x in dataset_type, ["mnist", "omniglot"])) else "RGB"
+        
+        # normal image processing
+        if dataset_mean is not None and len(dataset_mean) == 1:
+            conversion = "L"
+
+        return conversion
+
+    @staticmethod
     def compute_mean_std(dataset: Dataset, ds_type: str) -> Tuple[torch.Tensor, torch.Tensor]:
         if "imagenet" in ds_type:
             Logger.instance().debug(f"Dataset type is {ds_type}: imagenet mean/std selected")
@@ -105,7 +119,7 @@ class DatasetLauncher(Dataset):
             batch_samples = images.size(0)
             images = images.view(batch_samples, images.size(1), -1)
             var += ((images - mean.unsqueeze(1))**2).sum([0,2])
-            pixel_count += images.nelement()
+            pixel_count += batch_samples * images.size(2)
         std = torch.sqrt(var / pixel_count)
 
         if any(map(lambda x: torch.isnan(x), mean)) or any(map(lambda x: torch.isnan(x), std)):

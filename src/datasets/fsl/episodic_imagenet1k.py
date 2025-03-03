@@ -24,6 +24,7 @@ class EpisodicImagenet1k(FewShotDataset):
         - [CAML](https://arxiv.org/abs/2310.10971)
     """
 
+    ILSVRC_N_CLASSES = 1000
     ILSVRC_N_IMGS = 1281167
 
     def __init__(self, dataset_config: DatasetConfig):

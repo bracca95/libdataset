@@ -8,6 +8,7 @@ from ..dataset import DatasetLauncher
 from ...utils.downloader import Download
 from ...utils.config_parser import DatasetConfig
 from ...utils.tools import Logger
+from ....config.consts import General as _CG
 
 
 class Mnist(DatasetCls):
@@ -57,7 +58,7 @@ class Mnist(DatasetCls):
 
         # avoid using validation dataset if 0.0 is specified in the config.dataset.dataset_splits
         if len(self.dataset_config.dataset_splits) == 3:
-            if self.dataset_config.dataset_splits[1] < 0.1:
+            if self.dataset_config.dataset_splits[1] < _CG.EPS:
                 Logger.instance().warning(f"Overriding validation set: empty! No validation will be performed.")
                 val_dataset = None
                 

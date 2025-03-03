@@ -204,6 +204,22 @@ class Processing:
         return torch.nn.Identity()
     
     @staticmethod
+    def erasing_wrapper(scale: Tuple[float, float], p: float):
+        return transforms.Compose([
+            transforms.ToTensor(),
+            transforms.RandomErasing(scale=scale, p=p),
+            transforms.ToPILImage()
+        ])
+
+    @staticmethod
+    def custom_noise_wrapper(img: PilImgType, scale: float=0.1):
+        return transforms.Compose([
+            transforms.ToTensor(),
+            transforms.Lambda(lambda img: img + torch.randn_like(img) * scale),
+            transforms.ToPILImage()
+        ])
+    
+    @staticmethod
     def store_augmented_images(img_list: List[str], new_dir: str, iters: int, aug_fun: Callable[[PilImgType], PilImgType]):
         """Save the augmented images in the specified folder
 

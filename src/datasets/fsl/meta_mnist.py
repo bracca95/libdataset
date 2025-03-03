@@ -13,6 +13,7 @@ from ...imgproc import Processing
 from ...utils.tools import Logger, Tools
 from ...utils.downloader import Download
 from ...utils.config_parser import DatasetConfig
+from ....config.consts import General as _CG
 
 
 class Mnist2Fashion(FewShotDataset):
@@ -69,9 +70,11 @@ class Mnist2Fashion(FewShotDataset):
     def load_image(self, path: str, augment: Optional[List[str]]) -> torch.Tensor:
         repeat: int = self.dataset_config.augment_times      # type: ignore .non-null checked in config parser
         
-        conversion = "RGB"
-        if self.dataset_config.dataset_mean is not None and len(self.dataset_config.dataset_mean) == 1:
-            conversion = "L"
+        conversion = DatasetLauncher.rgb_or_l(
+            self.dataset_config.dataset_type,
+            self.dataset_config.normalize,
+            self.dataset_config.dataset_mean
+        )
         
         img_pil = Image.open(path).convert(conversion)
         img_size = self.dataset_config.image_size
@@ -82,7 +85,8 @@ class Mnist2Fashion(FewShotDataset):
                 Logger.instance().error(msg)
                 raise NotImplementedError(msg)
             elif "sample_strong" in augment:
-                img_pil = Processing.sample_augment(img_pil, self.dataset_config.image_size, strong=True)
+                times = self.dataset_config.augment_times if self.dataset_config.augment_times is not None else 3
+                img_pil = Processing.sample_augment(img_pil, self.dataset_config.image_size, strong=True, n=times)
             elif "sample_weak" in augment:
                 img_pil = Processing.sample_augment(img_pil, self.dataset_config.image_size, strong=False)
             elif "sample_rot_45" in augment:
@@ -107,10 +111,6 @@ class Mnist2Fashion(FewShotDataset):
         class_train = set([l for l in self.idx_to_label.values() if l.split("_")[0] == self.SUBDIRS_TRAIN[0]])
         class_test = set([l for l in self.idx_to_label.values() if l.split("_")[0] == self.SUBDIRS_TEST[0]])
         class_val = deepcopy(class_test)
-
-        if self.dataset_config.dataset_splits[1] < 0.1:
-            Logger.instance().warning("No validation will be performed")
-            class_val = set()
 
         return class_train, class_val, class_test
 

@@ -19,7 +19,7 @@ class OmniglotWrapper(FewShotDataset):
 
     N_IMG_PER_CLASS = 20
     N_CLASSES_TRAIN = 964
-    N_CLASSES_TEST = 659
+    N_CLASSES_TEST = 1623 - N_CLASSES_TRAIN # 659
     DATA_DIR = "omniglot-py"
     TRAIN_DIR = "images_background"
     TEST_DIR = "images_evaluation"
@@ -66,9 +66,11 @@ class OmniglotWrapper(FewShotDataset):
         if self.dataset_config.dataset_mean is not None and len(self.dataset_config.dataset_mean) == 3:
             return super().load_image(path, augment)
         
-        conversion = "RGB"
-        if self.dataset_config.dataset_mean is not None and len(self.dataset_config.dataset_mean) == 1:
-            conversion = "L"
+        conversion = DatasetLauncher.rgb_or_l(
+            self.dataset_config.dataset_type,
+            self.dataset_config.normalize,
+            self.dataset_config.dataset_mean
+        )
         
         img_pil = Image.open(path).convert(conversion)
 
@@ -78,7 +80,8 @@ class OmniglotWrapper(FewShotDataset):
                 Logger.instance().error(msg)
                 raise NotImplementedError(msg)
             elif "sample_strong" in augment:
-                img_pil = Processing.sample_augment(img_pil, self.dataset_config.image_size, strong=True, n=5)
+                times = self.dataset_config.augment_times if self.dataset_config.augment_times is not None else 3
+                img_pil = Processing.sample_augment(img_pil, self.dataset_config.image_size, strong=True, n=times)
             elif "sample_weak" in augment:
                 img_pil = Processing.sample_augment(img_pil, self.dataset_config.image_size, strong=False),
             elif "sample_rot_45" in augment:

@@ -47,9 +47,13 @@ class MiniImagenet(FewShotDataset):
         path = os.path.join(os.path.abspath(__file__).rsplit("src", 1)[0], "splits", "miniimagenet")
         path = Tools.validate_path(path)
 
-        def get_class_set(split_name: str):
+        def get_class_set(split_name: str) -> List[str]:
             split_path = Tools.validate_path(os.path.join(path, f"{split_name}.csv"))
             df = pd.read_csv(split_path)
-            return set(df["label"].values)
+            return Tools.unique_list(df["label"].values.tolist())
         
-        return get_class_set("train"), get_class_set("val"), get_class_set("test")
+        # get the classes, override by config if necessary
+        class_train, class_val, class_test = get_class_set("train"), get_class_set("val"), get_class_set("test")
+        class_train, class_val, class_test = self.get_trainval_only(class_train, class_val, class_test)
+
+        return set(class_train), set(class_val), set(class_test)

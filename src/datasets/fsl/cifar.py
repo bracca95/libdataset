@@ -38,14 +38,18 @@ class CifarFs(FewShotDataset):
         return glob(os.path.join(self.data_dir, "*", "*png"))
     
     def split_method(self) -> Tuple[Set[str], Set[str], Set[str]]:
-        def get_class_set(split_name: str):
+        def get_class_set(split_name: str) -> List[str]:
             split_path = Tools.validate_path(os.path.join(self.label_dir, f"{split_name}.txt"))
             with open(split_path, "r") as f:
                 labels = [l.strip() for l in f if l.strip()]
             
-            return set(labels)
+            return Tools.unique_list(labels)
 
-        return get_class_set("train"), get_class_set("val"), get_class_set("test")
+        # get the classes, override by config if necessary
+        class_train, class_val, class_test = get_class_set("train"), get_class_set("val"), get_class_set("test")
+        class_train, class_val, class_test = self.get_trainval_only(class_train, class_val, class_test)
+
+        return set(class_train), set(class_val), set(class_test)
 
     def expected_length(self) -> int:
         return (CifarFs.N_CLASSES_TRAIN + CifarFs.N_CLASSES_TEST + CifarFs.N_CLASSES_VAL) * CifarFs.N_IMG_PER_CLASS

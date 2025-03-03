@@ -26,6 +26,7 @@ class EpisodicImagenet(FewShotDataset):
     MINI_N_IMG_PER_CLASS = 600
     MINI_N_CLASSES_VAL = 16
     MINI_N_CLASSES_TEST = 20
+    ILSVRC_N_TRAIN_CLASSES = 964
     ILSVRC_N_TRAIN_IMGS = 1234487
     
     VAL_DATASET = "miniimagenet"

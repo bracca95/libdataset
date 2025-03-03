@@ -122,11 +122,48 @@ class FewShotDataset(DatasetWrapper):
 
         # avoid using validation dataset if 0.0 is specified in the config.dataset.dataset_splits
         if len(self.dataset_config.dataset_splits) == 3:
-            if self.dataset_config.dataset_splits[1] < 0.1:
+            if self.dataset_config.dataset_splits[1] < _CG.EPS:
                 Logger.instance().warning(f"Overriding validation set: empty! No validation will be performed.")
                 val_dataset = None
                 
         return train_dataset, val_dataset, test_dataset
+    
+    def get_trainval_only(
+            self,
+            class_train: List[str],
+            class_val: List[str],
+            class_test: List[str]
+        ) -> Tuple[List[str], List[str], List[str]]:
+        """Rearrange original train/val split
+
+        This method modifies the original split and it is intended to be used when willing to train on a certain number
+        of classes and validate on the remaining, without performing any test (no classes are reserved for the test
+        phase). The split is done in percentage, according to what is specified in the config file. The condition is
+        executed if the test split is given 0.0, otherwise the original split is returned.
+
+        Args:
+            class_train (List[str]): original train classes of the split
+            class_val (List[str]): original val classes of the split
+            class_test (List[str]): original test classes of the split
+
+        Returns:
+            Tuple[List[str], List[str], List[str]] as the modified or original split.
+        """
+
+        if len(self.dataset_config.dataset_splits) == 3 and self.dataset_config.dataset_splits[-1] < (0 + _CG.EPS):
+            n_classes = len(self.idx_to_label.keys())
+            n_train = int(np.floor(n_classes * self.dataset_config.dataset_splits[0]))
+            n_val = n_classes - n_train
+            
+            sort_idx2lbl = sorted(self.idx_to_label.items(), key=lambda x: x[0])  # ensure sorting by key
+            sort_labels = [value for _, value in sort_idx2lbl]
+            class_train = sort_labels[:n_train] # idx to label is ordered 0-99
+            class_val = sort_labels[n_train:]
+            class_test = []                 # override
+            Logger.instance().warning(f"You are changing the number of classes in train/val/test as the test is 0.")
+            Logger.instance().warning(f"You get {n_train} classes for train and {n_val} classes for validation.")
+
+        return class_train, class_val, class_test
     
     @staticmethod
     def ssl_augment_basic(x: PilImgType, dataset_config: DatasetConfig, n: int, strong: bool) -> List[Tensor]:

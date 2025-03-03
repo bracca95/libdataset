@@ -56,16 +56,19 @@ class DatasetCls(DatasetWrapper):
     def load_image(self, path: str, augment: Optional[List[str]]) -> torch.Tensor:
         repeat: int = self.dataset_config.augment_times      # type: ignore .non-null checked in config parser
         
-        conversion = "RGB"
-        if self.dataset_config.dataset_mean is not None and len(self.dataset_config.dataset_mean) == 1:
-            conversion = "L"
+        conversion = DatasetLauncher.rgb_or_l(
+            self.dataset_config.dataset_type,
+            self.dataset_config.normalize,
+            self.dataset_config.dataset_mean
+        )
         
         img_pil = Image.open(path).convert(conversion)
         img_size = self.dataset_config.image_size
 
         if augment is not None:
             if "sample_strong" in augment:
-                img_pil = Processing.sample_augment(img_pil, self.dataset_config.image_size, strong=True)
+                times = self.dataset_config.augment_times if self.dataset_config.augment_times is not None else 3
+                img_pil = Processing.sample_augment(img_pil, self.dataset_config.image_size, strong=True, n=times)
             elif "sample_weak" in augment:
                 img_pil = Processing.sample_augment(img_pil, self.dataset_config.image_size, strong=False)
             elif "sample_rot_45" in augment:
@@ -155,7 +158,7 @@ class DatasetCls(DatasetWrapper):
 
         # avoid using validation dataset if 0.0 is specified in the config.dataset.dataset_splits
         if len(self.dataset_config.dataset_splits) == 3:
-            if self.dataset_config.dataset_splits[1] < 0.1:
+            if self.dataset_config.dataset_splits[1] < _CG.EPS:
                 Logger.instance().warning(f"Overriding validation set: empty! No validation will be performed.")
                 val_dataset = None
                 
