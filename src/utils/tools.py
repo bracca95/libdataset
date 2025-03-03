@@ -186,6 +186,23 @@ class Tools:
                 count += len(os.listdir(sub_path))
 
         return count
+    
+    @staticmethod
+    def unique_list(label_list: List[Any]):
+        """Get a list of unique elements
+
+        This should replace the set() method in python, which builds a structure of unique, unordered values. To ensure
+        that the order is preserved, we need a list though. So this returns a list of unique elements where the
+        order is the same in which they appear in the original list
+
+        Args:
+            label_list (List[Any]): the list you want to get the unique elements
+
+        Returns:
+            a list with unique elements
+        """
+
+        return list(dict.fromkeys(label_list))
 
 
 @Singleton

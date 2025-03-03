@@ -60,7 +60,7 @@ class Mnist2Fashion(FewShotDataset):
 
         label_list = label_list_train + label_list_test
         
-        label_set = list(dict.fromkeys(label_list))     # not a set, but preserves the order
+        label_set = Tools.unique_list(label_list)     # not a set, but preserves the order
         self.label_to_idx = { val: i for i, val in enumerate(label_set) }
         self.idx_to_label = Tools.invert_dict(self.label_to_idx)
 

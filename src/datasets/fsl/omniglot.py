@@ -78,7 +78,7 @@ class OmniglotWrapper(FewShotDataset):
                 Logger.instance().error(msg)
                 raise NotImplementedError(msg)
             elif "sample_strong" in augment:
-                img_pil = Processing.sample_augment(img_pil, self.dataset_config.image_size, strong=True)
+                img_pil = Processing.sample_augment(img_pil, self.dataset_config.image_size, strong=True, n=5)
             elif "sample_weak" in augment:
                 img_pil = Processing.sample_augment(img_pil, self.dataset_config.image_size, strong=False),
             elif "sample_rot_45" in augment:

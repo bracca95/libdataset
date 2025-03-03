@@ -47,7 +47,7 @@ class DatasetCls(DatasetWrapper):
             self.image_list = self.get_image_list(None)
         
         label_list = [os.path.basename(os.path.dirname(img_path)) for img_path in self.image_list]
-        label_set = list(dict.fromkeys(label_list))     # not a set, but preserves the order
+        label_set = Tools.unique_list(label_list)     # not a set, but preserves the order
         self.label_to_idx = { val: i for i, val in enumerate(label_set) }
         self.idx_to_label = Tools.invert_dict(self.label_to_idx)
 

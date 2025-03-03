@@ -61,7 +61,7 @@ class Processing:
     ])
 
     @staticmethod
-    def sample_augment(x: PilImgType, img_size: int, strong: bool) -> Tensor:
+    def sample_augment(x: PilImgType, img_size: int, strong: bool, n: int=3) -> Tensor:
         # define transformations that can fit both RGB and L images
         transform_list = [
             transforms.RandomResizedCrop(img_size, scale=(0.2, 0.8)), # ConditionalRandomCrop(64)
@@ -81,8 +81,8 @@ class Processing:
         if x.mode == "RGB":
             transform_list.extend(transform_rgb_list)
 
-        # select 3 augmentations if strong, 1 if not
-        n = 3 if strong else 1
+        # select n augmentations if strong, 1 if not
+        n = n if strong else 1
         random_transforms = transforms.Compose([transforms.RandomChoice(transform_list) for _ in range(n)])
         
         return random_transforms(x)
