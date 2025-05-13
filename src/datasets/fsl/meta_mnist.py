@@ -70,11 +70,7 @@ class Mnist2Fashion(FewShotDataset):
     def load_image(self, path: str, augment: Optional[List[str]]) -> torch.Tensor:
         repeat: int = self.dataset_config.augment_times      # type: ignore .non-null checked in config parser
         
-        conversion = DatasetLauncher.rgb_or_l(
-            self.dataset_config.dataset_type,
-            self.dataset_config.normalize,
-            self.dataset_config.dataset_mean
-        )
+        conversion = DatasetLauncher.rgb_or_l(self.dataset_config.dataset_type, self.dataset_config.dataset_mean)
         
         img_pil = Image.open(path).convert(conversion)
         img_size = self.dataset_config.image_size

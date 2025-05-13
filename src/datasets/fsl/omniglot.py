@@ -66,11 +66,7 @@ class OmniglotWrapper(FewShotDataset):
         if self.dataset_config.dataset_mean is not None and len(self.dataset_config.dataset_mean) == 3:
             return super().load_image(path, augment)
         
-        conversion = DatasetLauncher.rgb_or_l(
-            self.dataset_config.dataset_type,
-            self.dataset_config.normalize,
-            self.dataset_config.dataset_mean
-        )
+        conversion = DatasetLauncher.rgb_or_l(self.dataset_config.dataset_type, self.dataset_config.dataset_mean)
         
         img_pil = Image.open(path).convert(conversion)
 

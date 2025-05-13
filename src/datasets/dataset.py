@@ -82,17 +82,18 @@ class DatasetLauncher(Dataset):
         self.info_dict = info
 
     @staticmethod
-    def rgb_or_l(dataset_type: str, normalize: bool, dataset_mean: Optional[List[float]]) -> str:
+    def rgb_or_l(dataset_type: str, dataset_mean: Optional[List[float]]) -> str:
         conversion = "RGB"
         
         # pre-processing step: you want normalization but you do not know the values
-        if normalize is True and dataset_mean is None:
+        if dataset_mean is None:
             conversion = "L" if any(map(lambda x: x in dataset_type, ["mnist", "omniglot"])) else "RGB"
         
         # normal image processing
         if dataset_mean is not None and len(dataset_mean) == 1:
             conversion = "L"
 
+        Logger.instance().debug(f"Reading images as `{conversion}`")
         return conversion
 
     @staticmethod
