@@ -99,6 +99,14 @@ class DatasetCls(DatasetWrapper):
             Tuple[DatasetLauncher, Optional[DatasetLauncher], DatasetLauncher]
         """
 
+        if not save_path == str() and os.path.exists(save_path):
+            if any(map(lambda x: x.endswith("csv"), os.listdir(save_path))):
+                train_images, train_labels = self.read_csv_split(save_path, "train")
+                val_images, val_labels = self.read_csv_split(save_path, "val")
+                test_images, test_labels = self.read_csv_split(save_path, "test")
+                Logger.instance().warning(f"Reading pre-defined splits in lib/libdataset/splits folder")
+                return self.get_launchers(train_images, train_labels, val_images, val_labels, test_images, test_labels)
+
         split_ratios = self.dataset_config.dataset_splits
         
         # shuffle
@@ -125,9 +133,9 @@ class DatasetCls(DatasetWrapper):
         # save dataframes
         if not save_path == str():
             os.makedirs(save_path, exist_ok=True)
-        self.save_csv_split(train_images, train_labels, os.path.join(save_path, "train.csv"))
-        self.save_csv_split(val_images, val_labels, os.path.join(save_path, "val.csv"))
-        self.save_csv_split(test_images, test_labels, os.path.join(save_path, "test.csv"))
+            self.save_csv_split(train_images, train_labels, os.path.join(save_path, "train.csv"))
+            self.save_csv_split(val_images, val_labels, os.path.join(save_path, "val.csv"))
+            self.save_csv_split(test_images, test_labels, os.path.join(save_path, "test.csv"))
 
         # get launchers
         return self.get_launchers(train_images, train_labels, val_images, val_labels, test_images, test_labels)
@@ -165,7 +173,12 @@ class DatasetCls(DatasetWrapper):
             "images": list(map(lambda x: x.removeprefix(f"{self.dataset_config.dataset_path}{os.sep}"), img_list)),
             "labels": label_list
         })
-        df.to_csv(os.path.join(save_path))
+        df.to_csv(os.path.join(save_path), index=False)
+
+    def read_csv_split(self, save_path: str, split: str) -> Tuple[List[str], List[int]]:
+        df = pd.read_csv(os.path.join(save_path, f"{split}.csv"))
+        parsed_imgs = list(map(lambda x: os.path.join(self.dataset_config.dataset_path, x), list(df["images"].values)))
+        return parsed_imgs, list(df["labels"].values)
     
     @property
     def image_list(self) -> List[str]:

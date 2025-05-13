@@ -93,7 +93,6 @@ class DatasetLauncher(Dataset):
         if dataset_mean is not None and len(dataset_mean) == 1:
             conversion = "L"
 
-        Logger.instance().debug(f"Reading images as `{conversion}`")
         return conversion
 
     @staticmethod

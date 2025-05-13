@@ -23,7 +23,7 @@ class Mnist(DatasetCls):
         super().__init__(dataset_config)
 
     def __len__(self) -> int:
-        return self.TRAIN_IMAGES
+        return self.TRAIN_IMAGES + self.TEST_IMAGES
 
     def get_image_list(self, filt: Optional[List[str]]) -> List[str]:
         avail_ext = ("jpeg", "jpg", "png", "JPG", "JPG", "JPEG")

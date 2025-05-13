@@ -21,6 +21,7 @@ from .fsl.meta_mnist import Mnist2Fashion, Fashion2Mnist
 from .fsl.wikiart import WikiArtArtist, WikiArtGenre, WikiArtStyle
 from .torch.celeba import CelebaWrapper
 from .classification.mnist import Mnist, FashionMnist
+from .classification.cifar100 import Cifar100
 from .classification.meta_album_csl import MetaAlbumCls
 from ..utils.config_parser import DatasetConfig
 from ..utils.tools import Logger
@@ -120,12 +121,16 @@ class DatasetBuilder:
         elif dataset_config.dataset_type == "fashion2mnist":
             Logger.instance().debug("Loading dataset Fashion2Mnist (type Mnist2Fashion)")
             return Fashion2Mnist(dataset_config)
+        elif dataset_config.dataset_type == "cifar100":
+            Logger.instance().debug("Loading dataset Cifar100 (type DatasetCls)")
+            return Cifar100(dataset_config)
         else:
             raise ValueError(
                 "values allowed: {`omniglot`, `episodic_imagenet`, `episodic_imagenet1k`, `episodic_coco`, " +
                 "`miniimagenet`, `cub`, `fungi`, `aircraft`, `meta_inat`, `meta_album`, `cropdiseases`, `eurosat`, " +
                 "`isic`, `dtd`, `cifar_fs`, `celeba`, `wikiart` {_artist, _genre, _style}, `pacs` {_object, _domain} " +
-                "`meta_album_cls`, `mnist`, `fashion_mnist`, `mnist2fashion`, `fashion2mnist` for dataset_type.\n" +
+                "`meta_album_cls`, `mnist`, `fashion_mnist`, `mnist2fashion`, `fashion2mnist`, `cifar100` " +
+                "for dataset_type.\n" +
                 "`episodic_imagenet` can also be run with other evaluation datasets: append " +
                 "(_val_cifar, _val_cub, _val_aircraft)"
             )
