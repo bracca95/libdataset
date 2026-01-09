@@ -1,7 +1,7 @@
 # A repo to manage them all: libdataset
 
 ## Dataset
-The idea is to have a unique repository to manage dataset for deep learning projects. Your own dataset can be built by implementing the abstract class `DatasetWrapper` in `src.dataset.dataset.py`
+The idea is to have a unique repository to manage dataset for deep learning projects. Add your own by extending `DatasetWrapper` in `src.dataset.dataset.py`. The `DatasetCls` in `src.datasets.dataset_cls.py` shows an example. More few-shot datasets are added as subclass of `FewShotDataset` in `src.datasets.fsl.dataset_fsl`.
 
 ## Dataset Config
 Edit the `config/config.json` file to start
@@ -29,3 +29,30 @@ Configuring augmentations (`augment_online`) might be tricky:
 * meta-datasets make use of "support" + "query", but can use "strong" as well.
 * classification datasets use typical sample augmentations: "sample_weak", "sample_strong", "sample_rot_45", "sample_rot_90".
 * meta-mnist and omniglot are exceptions: they use classification augmentations even if they are meta-datasets.
+
+
+## Usage
+1. Load a torch dataloader as `torch.utils.data.DataLoader`
+```python
+@staticmethod
+def init_loader(config: Config, dataset_wrapper: DatasetWrapper split_set: str) -> Optional[DataLoader]:
+        current_dataset = getattr(dataset_wrapper, f"{split_set}_dataset")
+        
+        if current_dataset is None:
+            return None
+
+        sampler = CtxBatchSampler(
+            labels=current_dataset.label_list,
+            classes_per_it=config.context.n_way,
+            n_samples_cls=config.context.k_shot + config.context.k_query,
+            iterations=config.context.episodes
+        )
+    
+        return DataLoader(
+            current_dataset,
+            batch_sampler=sampler,
+            num_workers=config.num_workers
+        )
+```
+
+2. Follow the main example in `unit_test/test_module.py`
