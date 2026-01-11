@@ -30,9 +30,19 @@ Configuring augmentations (`augment_online`) might be tricky:
 * classification datasets use typical sample augmentations: "sample_weak", "sample_strong", "sample_rot_45", "sample_rot_90".
 * meta-mnist and omniglot are exceptions: they use classification augmentations even if they are meta-datasets.
 
+## Requirements
+This program has been tested with python 3.10.x
+
+Install the required dependencies with:
+```python
+pip install -r requirements.txt
+```
+
 
 ## Usage
-1. Load a torch dataloader as `torch.utils.data.DataLoader`
+1. Create a context batch sampler by following [this example](https://github.com/bracca95/CAMeLU/blob/main/src/samplers/context_sampler.py).
+
+2. Load a torch dataloader as `torch.utils.data.DataLoader`
 ```python
 @staticmethod
 def init_loader(config: Config, dataset_wrapper: DatasetWrapper split_set: str) -> Optional[DataLoader]:
@@ -55,4 +65,4 @@ def init_loader(config: Config, dataset_wrapper: DatasetWrapper split_set: str) 
         )
 ```
 
-2. Follow the main example in `unit_test/test_module.py`
+3. Follow the main example in `unit_test/test_module.py`
